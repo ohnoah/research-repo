@@ -123,7 +123,12 @@ def get_pdf_info(pdf_path: Path) -> PDFInfo:
 
 def get_extractor_category(name: str) -> str:
     """Determine the category of an extractor by its name."""
-    if "_split_8" in name:
+    # Check split with cutoffs first (before generic split_N)
+    if "_split_100" in name:
+        return "split_100"
+    elif "_split_50" in name:
+        return "split_50"
+    elif "_split_8" in name:
         return "split_8"
     elif "_split_4" in name:
         return "split_4"
