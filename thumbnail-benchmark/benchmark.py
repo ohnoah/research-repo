@@ -627,7 +627,6 @@ Renderers:
   Single-threaded (run in ThreadPoolExecutor via run_in_executor):
     pymupdf           PyMuPDF (MuPDF engine), optimized (no JPEG roundtrip)
     pymupdf_jpeg      PyMuPDF with JPEG encode/decode (your current code)
-    pymupdf_grayscale PyMuPDF grayscale mode (faster, less memory)
     pypdfium2         pypdfium2 (PDFium/Chrome engine)
     pdf2image         pdf2image (Poppler/pdftoppm)
 

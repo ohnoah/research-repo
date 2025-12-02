@@ -21,7 +21,6 @@ IMPORTANT Threading Notes:
 
 Performance Optimizations Included:
 - Avoid JPEG encode/decode round-trip (use Image.frombytes directly)
-- Optional grayscale rendering for smaller memory footprint
 - Dimension and pixel count capping to prevent memory explosions
 """
 
@@ -149,35 +148,6 @@ def render_thumbnail_pymupdf(
                 # Fast path: direct bytes to Pillow (no codec roundtrip)
                 img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
 
-            images.append(img)
-    finally:
-        doc.close()
-
-    return images
-
-
-def render_thumbnail_pymupdf_grayscale(
-    pdf_bytes: bytes,
-    shortest_pixels: Optional[int] = None,
-) -> List[Image.Image]:
-    """
-    Render all pages as grayscale thumbnails (faster, less memory).
-
-    Grayscale rendering reduces memory by ~3x and can be faster for
-    thumbnails where color isn't important.
-    """
-    import fitz
-
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    images: List[Image.Image] = []
-
-    try:
-        for page in doc:
-            rect = page.rect
-            scale = _compute_scale(rect.width, rect.height, shortest_pixels)
-            mat = fitz.Matrix(scale, scale)
-            pix = page.get_pixmap(matrix=mat, colorspace=fitz.csGRAY, alpha=False)
-            img = Image.frombytes("L", (pix.width, pix.height), pix.samples)
             images.append(img)
     finally:
         doc.close()
@@ -501,11 +471,6 @@ def pymupdf_single_jpeg(path: str) -> List[Image.Image]:
     return render_thumbnail_pymupdf(Path(path).read_bytes(), use_jpeg_roundtrip=True)
 
 
-def pymupdf_single_grayscale(path: str) -> List[Image.Image]:
-    """PyMuPDF grayscale (faster, less memory)."""
-    return render_thumbnail_pymupdf_grayscale(Path(path).read_bytes())
-
-
 def pymupdf_multiprocess_2(path: str) -> List[Image.Image]:
     """PyMuPDF with 2 processes (split in half)."""
     return render_thumbnail_pymupdf_multiprocess(Path(path).read_bytes(), num_processes=2)
@@ -553,7 +518,6 @@ def pdf2image_multiprocess_4(path: str) -> List[Image.Image]:
 SINGLE_THREADED_RENDERERS = {
     "pymupdf": pymupdf_single,
     "pymupdf_jpeg": pymupdf_single_jpeg,
-    "pymupdf_grayscale": pymupdf_single_grayscale,
     "pypdfium2": pypdfium2_single,
     "pdf2image": pdf2image_single,
 }
