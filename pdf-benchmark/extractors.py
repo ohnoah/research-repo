@@ -602,75 +602,6 @@ def _make_split_extractor(
     return split_extractor
 
 
-# Split into 2 chunks
-extract_text_pymupdf_split_2 = _make_split_extractor("pymupdf", 2)
-extract_text_pypdfium2_split_2 = _make_split_extractor("pypdfium2", 2)
-extract_text_pypdf_split_2 = _make_split_extractor("pypdf", 2)
-extract_text_pdftext_split_2 = _make_split_extractor("pdftext", 2)
-extract_text_mutool_split_2 = _make_split_extractor("mutool", 2)
-extract_text_pdftotext_split_2 = _make_split_extractor("pdftotext", 2)
-
-# Split into 4 chunks
-extract_text_pymupdf_split_4 = _make_split_extractor("pymupdf", 4)
-extract_text_pypdfium2_split_4 = _make_split_extractor("pypdfium2", 4)
-extract_text_pypdf_split_4 = _make_split_extractor("pypdf", 4)
-extract_text_pdftext_split_4 = _make_split_extractor("pdftext", 4)
-extract_text_mutool_split_4 = _make_split_extractor("mutool", 4)
-extract_text_pdftotext_split_4 = _make_split_extractor("pdftotext", 4)
-
-# Split into 8 chunks
-extract_text_pymupdf_split_8 = _make_split_extractor("pymupdf", 8)
-extract_text_pypdfium2_split_8 = _make_split_extractor("pypdfium2", 8)
-extract_text_pypdf_split_8 = _make_split_extractor("pypdf", 8)
-extract_text_pdftext_split_8 = _make_split_extractor("pdftext", 8)
-extract_text_mutool_split_8 = _make_split_extractor("mutool", 8)
-extract_text_pdftotext_split_8 = _make_split_extractor("pdftotext", 8)
-
-
-# -----------------------------------------------------------------------------
-# Split with Hybrid cutoffs (only split large PDFs)
-# -----------------------------------------------------------------------------
-def _make_split_hybrid_extractor(
-    extractor_name: str,
-    num_chunks: int,
-    cutoff: int,
-) -> Callable[[str], str]:
-    """
-    Create an extractor that only splits PDFs above a certain page count.
-
-    For PDFs below the cutoff, uses single-threaded extraction.
-    For PDFs at or above the cutoff, splits into chunks and processes in parallel.
-    """
-    single_func = SINGLE_THREADED_EXTRACTORS[extractor_name]
-    split_func = _make_split_extractor(extractor_name, num_chunks)
-
-    def split_hybrid_extractor(path: str) -> str:
-        page_count = _get_page_count(path)
-        if page_count < cutoff:
-            return single_func(path)
-        else:
-            return split_func(path)
-
-    return split_hybrid_extractor
-
-
-# Split with 50-page cutoff (4 chunks)
-extract_text_pymupdf_split_50 = _make_split_hybrid_extractor("pymupdf", 4, 50)
-extract_text_pypdfium2_split_50 = _make_split_hybrid_extractor("pypdfium2", 4, 50)
-extract_text_pypdf_split_50 = _make_split_hybrid_extractor("pypdf", 4, 50)
-extract_text_pdftext_split_50 = _make_split_hybrid_extractor("pdftext", 4, 50)
-extract_text_mutool_split_50 = _make_split_hybrid_extractor("mutool", 4, 50)
-extract_text_pdftotext_split_50 = _make_split_hybrid_extractor("pdftotext", 4, 50)
-
-# Split with 100-page cutoff (4 chunks)
-extract_text_pymupdf_split_100 = _make_split_hybrid_extractor("pymupdf", 4, 100)
-extract_text_pypdfium2_split_100 = _make_split_hybrid_extractor("pypdfium2", 4, 100)
-extract_text_pypdf_split_100 = _make_split_hybrid_extractor("pypdf", 4, 100)
-extract_text_pdftext_split_100 = _make_split_hybrid_extractor("pdftext", 4, 100)
-extract_text_mutool_split_100 = _make_split_hybrid_extractor("mutool", 4, 100)
-extract_text_pdftotext_split_100 = _make_split_hybrid_extractor("pdftotext", 4, 100)
-
-
 # ============================================================================
 # ASYNC WRAPPERS
 # Run extractors in async context using ThreadPoolExecutor (realistic runtime)
@@ -760,32 +691,50 @@ HYBRID_100_EXTRACTORS: dict[str, Callable[[str], str]] = {
     "pdftotext_hybrid_100": extract_text_pdftotext_hybrid_100,
 }
 
-SPLIT_2_EXTRACTORS: dict[str, Callable[[str], str]] = {
-    "pymupdf_split_2": extract_text_pymupdf_split_2,
-    "pypdfium2_split_2": extract_text_pypdfium2_split_2,
-    "pypdf_split_2": extract_text_pypdf_split_2,
-    "pdftext_split_2": extract_text_pdftext_split_2,
-    "mutool_split_2": extract_text_mutool_split_2,
-    "pdftotext_split_2": extract_text_pdftotext_split_2,
-}
 
-SPLIT_4_EXTRACTORS: dict[str, Callable[[str], str]] = {
-    "pymupdf_split_4": extract_text_pymupdf_split_4,
-    "pypdfium2_split_4": extract_text_pypdfium2_split_4,
-    "pypdf_split_4": extract_text_pypdf_split_4,
-    "pdftext_split_4": extract_text_pdftext_split_4,
-    "mutool_split_4": extract_text_mutool_split_4,
-    "pdftotext_split_4": extract_text_pdftotext_split_4,
-}
+# -----------------------------------------------------------------------------
+# Split with Hybrid cutoffs (only split large PDFs)
+# -----------------------------------------------------------------------------
+def _make_split_hybrid_extractor(
+    extractor_name: str,
+    num_chunks: int,
+    cutoff: int,
+) -> Callable[[str], str]:
+    """
+    Create an extractor that only splits PDFs above a certain page count.
 
-SPLIT_8_EXTRACTORS: dict[str, Callable[[str], str]] = {
-    "pymupdf_split_8": extract_text_pymupdf_split_8,
-    "pypdfium2_split_8": extract_text_pypdfium2_split_8,
-    "pypdf_split_8": extract_text_pypdf_split_8,
-    "pdftext_split_8": extract_text_pdftext_split_8,
-    "mutool_split_8": extract_text_mutool_split_8,
-    "pdftotext_split_8": extract_text_pdftotext_split_8,
-}
+    For PDFs below the cutoff, uses single-threaded extraction.
+    For PDFs at or above the cutoff, splits into chunks and processes in parallel.
+    """
+    single_func = SINGLE_THREADED_EXTRACTORS[extractor_name]
+    split_func = _make_split_extractor(extractor_name, num_chunks)
+
+    def split_hybrid_extractor(path: str) -> str:
+        page_count = _get_page_count(path)
+        if page_count < cutoff:
+            return single_func(path)
+        else:
+            return split_func(path)
+
+    return split_hybrid_extractor
+
+
+# Split with 50-page cutoff (4 chunks)
+extract_text_pymupdf_split_50 = _make_split_hybrid_extractor("pymupdf", 4, 50)
+extract_text_pypdfium2_split_50 = _make_split_hybrid_extractor("pypdfium2", 4, 50)
+extract_text_pypdf_split_50 = _make_split_hybrid_extractor("pypdf", 4, 50)
+extract_text_pdftext_split_50 = _make_split_hybrid_extractor("pdftext", 4, 50)
+extract_text_mutool_split_50 = _make_split_hybrid_extractor("mutool", 4, 50)
+extract_text_pdftotext_split_50 = _make_split_hybrid_extractor("pdftotext", 4, 50)
+
+# Split with 100-page cutoff (4 chunks)
+extract_text_pymupdf_split_100 = _make_split_hybrid_extractor("pymupdf", 4, 100)
+extract_text_pypdfium2_split_100 = _make_split_hybrid_extractor("pypdfium2", 4, 100)
+extract_text_pypdf_split_100 = _make_split_hybrid_extractor("pypdf", 4, 100)
+extract_text_pdftext_split_100 = _make_split_hybrid_extractor("pdftext", 4, 100)
+extract_text_mutool_split_100 = _make_split_hybrid_extractor("mutool", 4, 100)
+extract_text_pdftotext_split_100 = _make_split_hybrid_extractor("pdftotext", 4, 100)
+
 
 SPLIT_50_EXTRACTORS: dict[str, Callable[[str], str]] = {
     "pymupdf_split_50": extract_text_pymupdf_split_50,
@@ -810,9 +759,6 @@ ALL_EXTRACTORS: dict[str, Callable[[str], str]] = {
     **PARALLEL_EXTRACTORS,
     **HYBRID_50_EXTRACTORS,
     **HYBRID_100_EXTRACTORS,
-    **SPLIT_2_EXTRACTORS,
-    **SPLIT_4_EXTRACTORS,
-    **SPLIT_8_EXTRACTORS,
     **SPLIT_50_EXTRACTORS,
     **SPLIT_100_EXTRACTORS,
 }
@@ -823,9 +769,6 @@ EXTRACTOR_CATEGORIES = {
     "parallel": list(PARALLEL_EXTRACTORS.keys()),
     "hybrid_50": list(HYBRID_50_EXTRACTORS.keys()),
     "hybrid_100": list(HYBRID_100_EXTRACTORS.keys()),
-    "split_2": list(SPLIT_2_EXTRACTORS.keys()),
-    "split_4": list(SPLIT_4_EXTRACTORS.keys()),
-    "split_8": list(SPLIT_8_EXTRACTORS.keys()),
     "split_50": list(SPLIT_50_EXTRACTORS.keys()),
     "split_100": list(SPLIT_100_EXTRACTORS.keys()),
 }

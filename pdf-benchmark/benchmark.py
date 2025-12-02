@@ -123,17 +123,10 @@ def get_pdf_info(pdf_path: Path) -> PDFInfo:
 
 def get_extractor_category(name: str) -> str:
     """Determine the category of an extractor by its name."""
-    # Check split with cutoffs first (before generic split_N)
     if "_split_100" in name:
         return "split_100"
     elif "_split_50" in name:
         return "split_50"
-    elif "_split_8" in name:
-        return "split_8"
-    elif "_split_4" in name:
-        return "split_4"
-    elif "_split_2" in name:
-        return "split_2"
     elif "_hybrid_100" in name:
         return "hybrid_100"
     elif "_hybrid_50" in name:
@@ -564,7 +557,7 @@ def generate_summary(results: list[BenchmarkResult]) -> str:
                 cat_speeds[cat] = []
             cat_speeds[cat].append(r.pages_per_second)
 
-        for cat in ["single", "parallel", "hybrid_50", "hybrid_100", "split_2", "split_4", "split_8"]:
+        for cat in ["single", "parallel", "hybrid_50", "hybrid_100", "split_50", "split_100"]:
             if cat in cat_speeds:
                 avg = sum(cat_speeds[cat]) / len(cat_speeds[cat])
                 lines.append(f"    {cat:12}: {avg:8.1f} pages/s")
@@ -616,8 +609,8 @@ Examples:
   # Run hybrid extractors (50 and 100 page cutoffs)
   python benchmark.py --category hybrid_50 hybrid_100
 
-  # Run split extractors
-  python benchmark.py --category split_2 split_4 split_8
+  # Run split extractors (only split large PDFs)
+  python benchmark.py --category split_50 split_100
 
   # Run specific extractors
   python benchmark.py -e pymupdf pypdfium2 pdftotext
@@ -643,9 +636,8 @@ Categories:
   parallel    Parallel extractors (page-range based)
   hybrid_50   Hybrid: single < 50 pages, parallel >= 50 pages
   hybrid_100  Hybrid: single < 100 pages, parallel >= 100 pages
-  split_2     Split PDF into 2 chunks, extract in parallel
-  split_4     Split PDF into 4 chunks, extract in parallel
-  split_8     Split PDF into 8 chunks, extract in parallel
+  split_50    Split into 4 chunks only if >= 50 pages
+  split_100   Split into 4 chunks only if >= 100 pages
         """,
     )
 
@@ -730,12 +722,12 @@ Categories:
         for cat in args.category:
             extractors.extend(EXTRACTOR_CATEGORIES.get(cat, []))
     else:
-        # Default: run single, parallel, hybrid_50, and split_4
+        # Default: run single, parallel, hybrid_50, and split_50
         extractors = (
             EXTRACTOR_CATEGORIES["single"] +
             EXTRACTOR_CATEGORIES["parallel"] +
             EXTRACTOR_CATEGORIES["hybrid_50"] +
-            EXTRACTOR_CATEGORIES["split_4"]
+            EXTRACTOR_CATEGORIES["split_50"]
         )
 
     workers = args.workers if args.workers else get_default_workers()
