@@ -10,15 +10,24 @@ This script benchmarks various PDF text extraction tools:
 - mutool (CLI)
 - pdftotext (CLI)
 
-Each tool is tested in both single-threaded and parallel modes.
+Each tool is tested in multiple modes:
+- Single-threaded
+- Parallel (page-range based)
+- Hybrid (single below cutoff, parallel above)
+- Split (split PDF into chunks, process in parallel)
+
+All tests run inside an async runtime with ThreadPoolExecutor
+to simulate real-world Django/FastAPI usage.
 """
 
 import argparse
+import asyncio
 import gc
 import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
@@ -30,7 +39,18 @@ from tqdm import tqdm
 from extractors import (
     SINGLE_THREADED_EXTRACTORS,
     PARALLEL_EXTRACTORS,
+    HYBRID_50_EXTRACTORS,
+    HYBRID_100_EXTRACTORS,
+    SPLIT_2_EXTRACTORS,
+    SPLIT_4_EXTRACTORS,
+    SPLIT_8_EXTRACTORS,
     ALL_EXTRACTORS,
+    EXTRACTOR_CATEGORIES,
+    get_cpu_pool,
+    get_default_workers,
+    get_cpu_count,
+    shutdown_cpu_pool,
+    run_extractor_async,
 )
 
 
@@ -46,6 +66,7 @@ class BenchmarkResult:
     success: bool
     error_message: Optional[str] = None
     is_parallel: bool = False
+    category: str = "single"
 
     @property
     def pages_per_second(self) -> float:
@@ -78,6 +99,8 @@ class BenchmarkConfig:
     extractors: list[str] = field(default_factory=lambda: list(ALL_EXTRACTORS.keys()))
     pdfs: list[str] = field(default_factory=list)  # empty = all PDFs
     verbose: bool = False
+    use_async: bool = True  # Run in async context (realistic)
+    workers: int = 4
 
 
 def get_pdf_info(pdf_path: Path) -> PDFInfo:
@@ -98,14 +121,77 @@ def get_pdf_info(pdf_path: Path) -> PDFInfo:
     )
 
 
-def run_single_benchmark(
+def get_extractor_category(name: str) -> str:
+    """Determine the category of an extractor by its name."""
+    if "_split_8" in name:
+        return "split_8"
+    elif "_split_4" in name:
+        return "split_4"
+    elif "_split_2" in name:
+        return "split_2"
+    elif "_hybrid_100" in name:
+        return "hybrid_100"
+    elif "_hybrid_50" in name:
+        return "hybrid_50"
+    elif "_parallel" in name:
+        return "parallel"
+    else:
+        return "single"
+
+
+async def run_single_benchmark_async(
     extractor_name: str,
     extractor_func: Callable[[str], str],
     pdf_info: PDFInfo,
-    is_parallel: bool = False,
+    executor: ThreadPoolExecutor,
 ) -> BenchmarkResult:
-    """Run a single benchmark test."""
+    """Run a single benchmark test in async context."""
     gc.collect()
+
+    category = get_extractor_category(extractor_name)
+    is_parallel = category != "single"
+
+    start_time = time.perf_counter()
+    try:
+        text = await run_extractor_async(extractor_func, str(pdf_info.path), executor)
+        elapsed = time.perf_counter() - start_time
+        return BenchmarkResult(
+            extractor_name=extractor_name,
+            pdf_name=pdf_info.path.name,
+            pdf_size_bytes=pdf_info.size_bytes,
+            pdf_pages=pdf_info.page_count,
+            extraction_time_seconds=elapsed,
+            text_length=len(text),
+            success=True,
+            is_parallel=is_parallel,
+            category=category,
+        )
+    except Exception as e:
+        elapsed = time.perf_counter() - start_time
+        return BenchmarkResult(
+            extractor_name=extractor_name,
+            pdf_name=pdf_info.path.name,
+            pdf_size_bytes=pdf_info.size_bytes,
+            pdf_pages=pdf_info.page_count,
+            extraction_time_seconds=elapsed,
+            text_length=0,
+            success=False,
+            error_message=str(e),
+            is_parallel=is_parallel,
+            category=category,
+        )
+
+
+def run_single_benchmark_sync(
+    extractor_name: str,
+    extractor_func: Callable[[str], str],
+    pdf_info: PDFInfo,
+) -> BenchmarkResult:
+    """Run a single benchmark test synchronously."""
+    gc.collect()
+
+    category = get_extractor_category(extractor_name)
+    is_parallel = category != "single"
 
     start_time = time.perf_counter()
     try:
@@ -120,6 +206,7 @@ def run_single_benchmark(
             text_length=len(text),
             success=True,
             is_parallel=is_parallel,
+            category=category,
         )
     except Exception as e:
         elapsed = time.perf_counter() - start_time
@@ -133,13 +220,86 @@ def run_single_benchmark(
             success=False,
             error_message=str(e),
             is_parallel=is_parallel,
+            category=category,
         )
+
+
+async def run_benchmarks_async(
+    config: BenchmarkConfig,
+    pdf_infos: list[PDFInfo],
+    extractors_to_run: dict[str, Callable],
+) -> list[BenchmarkResult]:
+    """Run all benchmarks in async context."""
+    results = []
+
+    total_tests = len(pdf_infos) * len(extractors_to_run) * (config.warmup_runs + config.benchmark_runs)
+
+    # Create thread pool for async execution
+    with ThreadPoolExecutor(max_workers=config.workers) as executor:
+        with tqdm(total=total_tests, desc="Benchmarking (async)", ncols=80) as pbar:
+            for pdf_info in pdf_infos:
+                for extractor_name, extractor_func in extractors_to_run.items():
+                    # Warmup runs (not recorded)
+                    for _ in range(config.warmup_runs):
+                        await run_single_benchmark_async(
+                            extractor_name, extractor_func, pdf_info, executor
+                        )
+                        pbar.update(1)
+
+                    # Benchmark runs (recorded)
+                    run_results = []
+                    for _ in range(config.benchmark_runs):
+                        result = await run_single_benchmark_async(
+                            extractor_name, extractor_func, pdf_info, executor
+                        )
+                        run_results.append(result)
+                        pbar.update(1)
+
+                    # Use median result (by time)
+                    run_results.sort(key=lambda r: r.extraction_time_seconds)
+                    median_idx = len(run_results) // 2
+                    results.append(run_results[median_idx])
+
+    return results
+
+
+def run_benchmarks_sync(
+    config: BenchmarkConfig,
+    pdf_infos: list[PDFInfo],
+    extractors_to_run: dict[str, Callable],
+) -> list[BenchmarkResult]:
+    """Run all benchmarks synchronously."""
+    results = []
+
+    total_tests = len(pdf_infos) * len(extractors_to_run) * (config.warmup_runs + config.benchmark_runs)
+
+    with tqdm(total=total_tests, desc="Benchmarking (sync)", ncols=80) as pbar:
+        for pdf_info in pdf_infos:
+            for extractor_name, extractor_func in extractors_to_run.items():
+                # Warmup runs (not recorded)
+                for _ in range(config.warmup_runs):
+                    run_single_benchmark_sync(extractor_name, extractor_func, pdf_info)
+                    pbar.update(1)
+
+                # Benchmark runs (recorded)
+                run_results = []
+                for _ in range(config.benchmark_runs):
+                    result = run_single_benchmark_sync(
+                        extractor_name, extractor_func, pdf_info
+                    )
+                    run_results.append(result)
+                    pbar.update(1)
+
+                # Use median result (by time)
+                run_results.sort(key=lambda r: r.extraction_time_seconds)
+                median_idx = len(run_results) // 2
+                results.append(run_results[median_idx])
+
+    return results
 
 
 def run_benchmarks(config: BenchmarkConfig) -> list[BenchmarkResult]:
     """Run all benchmarks according to configuration."""
-    results = []
-
     # Discover PDFs
     pdf_files = sorted(config.pdf_dir.glob("*.pdf"))
     if config.pdfs:
@@ -147,7 +307,7 @@ def run_benchmarks(config: BenchmarkConfig) -> list[BenchmarkResult]:
 
     if not pdf_files:
         print(f"No PDF files found in {config.pdf_dir}")
-        return results
+        return []
 
     # Get PDF info
     print(f"\nDiscovering PDFs in {config.pdf_dir}...")
@@ -162,7 +322,7 @@ def run_benchmarks(config: BenchmarkConfig) -> list[BenchmarkResult]:
 
     if not pdf_infos:
         print("No valid PDFs found")
-        return results
+        return []
 
     # Filter extractors
     extractors_to_run = {}
@@ -174,7 +334,7 @@ def run_benchmarks(config: BenchmarkConfig) -> list[BenchmarkResult]:
 
     if not extractors_to_run:
         print("No valid extractors specified")
-        return results
+        return []
 
     total_tests = len(pdf_infos) * len(extractors_to_run) * (config.warmup_runs + config.benchmark_runs)
     print(f"\nRunning {total_tests} benchmark tests...")
@@ -182,30 +342,15 @@ def run_benchmarks(config: BenchmarkConfig) -> list[BenchmarkResult]:
     print(f"  Extractors: {len(extractors_to_run)}")
     print(f"  Warmup runs: {config.warmup_runs}")
     print(f"  Benchmark runs: {config.benchmark_runs}")
+    print(f"  Workers: {config.workers}")
+    print(f"  Async mode: {config.use_async}")
     print("=" * 60)
 
     # Run benchmarks
-    with tqdm(total=total_tests, desc="Benchmarking", ncols=80) as pbar:
-        for pdf_info in pdf_infos:
-            for extractor_name, extractor_func in extractors_to_run.items():
-                is_parallel = "_parallel" in extractor_name
-
-                # Warmup runs (not recorded)
-                for _ in range(config.warmup_runs):
-                    run_single_benchmark(extractor_name, extractor_func, pdf_info, is_parallel)
-                    pbar.update(1)
-
-                # Benchmark runs (recorded)
-                run_results = []
-                for _ in range(config.benchmark_runs):
-                    result = run_single_benchmark(extractor_name, extractor_func, pdf_info, is_parallel)
-                    run_results.append(result)
-                    pbar.update(1)
-
-                # Use median result (by time)
-                run_results.sort(key=lambda r: r.extraction_time_seconds)
-                median_idx = len(run_results) // 2
-                results.append(run_results[median_idx])
+    if config.use_async:
+        results = asyncio.run(run_benchmarks_async(config, pdf_infos, extractors_to_run))
+    else:
+        results = run_benchmarks_sync(config, pdf_infos, extractors_to_run)
 
     return results
 
@@ -230,28 +375,27 @@ def format_results_table(results: list[BenchmarkResult], group_by: str = "pdf") 
             pdf_pages = pdf_results[0].pdf_pages
 
             tables.append(f"\n{pdf_name} ({pdf_size/1024:.1f} KB, {pdf_pages} pages)")
-            tables.append("-" * 60)
+            tables.append("-" * 80)
 
             # Sort by time
             pdf_results.sort(key=lambda r: r.extraction_time_seconds)
 
             rows = []
             for r in pdf_results:
-                status = "OK" if r.success else f"ERR: {r.error_message[:20]}"
-                mode = "parallel" if r.is_parallel else "single"
+                status = "OK" if r.success else f"ERR: {r.error_message[:15] if r.error_message else 'unknown'}"
                 rows.append([
-                    r.extractor_name,
-                    mode,
+                    r.extractor_name[:25],
+                    r.category[:10],
                     f"{r.extraction_time_seconds*1000:.1f} ms",
                     f"{r.pages_per_second:.1f}",
                     f"{r.mb_per_second:.2f}",
                     f"{r.text_length:,}",
-                    status,
+                    status[:10],
                 ])
 
             tables.append(tabulate(
                 rows,
-                headers=["Extractor", "Mode", "Time", "Pages/s", "MB/s", "Text Len", "Status"],
+                headers=["Extractor", "Category", "Time", "Pages/s", "MB/s", "Text Len", "Status"],
                 tablefmt="simple",
             ))
 
@@ -267,8 +411,8 @@ def format_results_table(results: list[BenchmarkResult], group_by: str = "pdf") 
             if not ext_results:
                 continue
 
-            mode = "parallel" if ext_results[0].is_parallel else "single"
-            tables.append(f"\n{extractor_name} ({mode})")
+            category = ext_results[0].category
+            tables.append(f"\n{extractor_name} ({category})")
             tables.append("-" * 60)
 
             # Sort by PDF size
@@ -276,7 +420,7 @@ def format_results_table(results: list[BenchmarkResult], group_by: str = "pdf") 
 
             rows = []
             for r in ext_results:
-                status = "OK" if r.success else f"ERR"
+                status = "OK" if r.success else "ERR"
                 rows.append([
                     r.pdf_name[:30],
                     f"{r.pdf_size_bytes/1024:.1f} KB",
@@ -294,16 +438,38 @@ def format_results_table(results: list[BenchmarkResult], group_by: str = "pdf") 
 
         return "\n".join(tables)
 
+    elif group_by == "category":
+        # Group by category
+        tables = []
+        categories = sorted(set(r.category for r in results))
+
+        for category in categories:
+            cat_results = [r for r in results if r.category == category]
+            if not cat_results:
+                continue
+
+            tables.append(f"\n=== Category: {category} ===")
+
+            # Group by extractor base name
+            base_names = sorted(set(r.extractor_name.split("_")[0] for r in cat_results))
+
+            for base_name in base_names:
+                base_results = [r for r in cat_results if r.extractor_name.startswith(base_name)]
+                if base_results:
+                    avg_speed = sum(r.pages_per_second for r in base_results if r.success) / len([r for r in base_results if r.success]) if any(r.success for r in base_results) else 0
+                    tables.append(f"  {base_results[0].extractor_name}: {avg_speed:.1f} pages/s avg")
+
+        return "\n".join(tables)
+
     else:
         # Flat table
         rows = []
         for r in sorted(results, key=lambda r: (r.pdf_name, r.extraction_time_seconds)):
             status = "OK" if r.success else "ERR"
-            mode = "P" if r.is_parallel else "S"
             rows.append([
                 r.pdf_name[:20],
-                r.extractor_name,
-                mode,
+                r.extractor_name[:20],
+                r.category[:8],
                 f"{r.extraction_time_seconds*1000:.1f}",
                 f"{r.pages_per_second:.1f}",
                 status,
@@ -311,7 +477,7 @@ def format_results_table(results: list[BenchmarkResult], group_by: str = "pdf") 
 
         return tabulate(
             rows,
-            headers=["PDF", "Extractor", "Mode", "Time (ms)", "Pages/s", "Status"],
+            headers=["PDF", "Extractor", "Category", "Time (ms)", "Pages/s", "Status"],
             tablefmt="simple",
         )
 
@@ -339,6 +505,15 @@ def generate_summary(results: list[BenchmarkResult]) -> str:
         return "\n".join(lines)
 
     # Best performers by category
+    lines.append("\n--- Average Speed by Category ---")
+
+    categories = sorted(set(r.category for r in successful))
+    for category in categories:
+        cat_results = [r for r in successful if r.category == category]
+        avg_speed = sum(r.pages_per_second for r in cat_results) / len(cat_results)
+        lines.append(f"  {category}: {avg_speed:.1f} pages/s avg")
+
+    # Best performers by extractor
     lines.append("\n--- Fastest by Extractor (averaged across all PDFs) ---")
 
     extractor_times = {}
@@ -353,34 +528,46 @@ def generate_summary(results: list[BenchmarkResult]) -> str:
     ]
     avg_speeds.sort(key=lambda x: -x[1])
 
-    for name, avg_speed in avg_speeds:
-        is_parallel = "_parallel" in name
-        mode = "parallel" if is_parallel else "single"
-        lines.append(f"  {name} ({mode}): {avg_speed:.1f} pages/s avg")
+    # Show top 10
+    for name, avg_speed in avg_speeds[:10]:
+        category = get_extractor_category(name)
+        lines.append(f"  {name} ({category}): {avg_speed:.1f} pages/s avg")
 
-    # Single vs Parallel comparison
-    lines.append("\n--- Single-threaded vs Parallel Comparison ---")
+    if len(avg_speeds) > 10:
+        lines.append(f"  ... and {len(avg_speeds) - 10} more")
 
-    base_extractors = set(r.extractor_name.replace("_parallel", "") for r in successful)
+    # Comparison between modes for each base extractor
+    lines.append("\n--- Mode Comparison by Base Extractor ---")
+
+    base_extractors = set()
+    for r in successful:
+        base = r.extractor_name.split("_")[0]
+        base_extractors.add(base)
 
     for base_name in sorted(base_extractors):
-        single_results = [r for r in successful if r.extractor_name == base_name]
-        parallel_results = [r for r in successful if r.extractor_name == f"{base_name}_parallel"]
+        base_results = [r for r in successful if r.extractor_name.startswith(base_name + "_") or r.extractor_name == base_name]
+        if not base_results:
+            continue
 
-        if single_results and parallel_results:
-            single_avg = sum(r.pages_per_second for r in single_results) / len(single_results)
-            parallel_avg = sum(r.pages_per_second for r in parallel_results) / len(parallel_results)
-            speedup = parallel_avg / single_avg if single_avg > 0 else 0
+        lines.append(f"\n  {base_name}:")
 
-            lines.append(f"\n  {base_name}:")
-            lines.append(f"    Single:   {single_avg:.1f} pages/s")
-            lines.append(f"    Parallel: {parallel_avg:.1f} pages/s")
-            lines.append(f"    Speedup:  {speedup:.2f}x")
+        # Group by category
+        cat_speeds = {}
+        for r in base_results:
+            cat = r.category
+            if cat not in cat_speeds:
+                cat_speeds[cat] = []
+            cat_speeds[cat].append(r.pages_per_second)
+
+        for cat in ["single", "parallel", "hybrid_50", "hybrid_100", "split_2", "split_4", "split_8"]:
+            if cat in cat_speeds:
+                avg = sum(cat_speeds[cat]) / len(cat_speeds[cat])
+                lines.append(f"    {cat:12}: {avg:8.1f} pages/s")
 
     return "\n".join(lines)
 
 
-def save_results(results: list[BenchmarkResult], output_dir: Path) -> Path:
+def save_results(results: list[BenchmarkResult], output_dir: Path, config: BenchmarkConfig) -> Path:
     """Save results to JSON file."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -389,6 +576,13 @@ def save_results(results: list[BenchmarkResult], output_dir: Path) -> Path:
 
     data = {
         "timestamp": timestamp,
+        "config": {
+            "workers": config.workers,
+            "warmup_runs": config.warmup_runs,
+            "benchmark_runs": config.benchmark_runs,
+            "use_async": config.use_async,
+            "cpu_count": get_cpu_count(),
+        },
         "results": [asdict(r) for r in results],
     }
 
@@ -405,14 +599,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run all benchmarks
+  # Run all benchmarks (async mode, default)
   python benchmark.py
 
   # Run only single-threaded extractors
-  python benchmark.py --single-only
+  python benchmark.py --category single
 
   # Run only parallel extractors
-  python benchmark.py --parallel-only
+  python benchmark.py --category parallel
+
+  # Run hybrid extractors (50 and 100 page cutoffs)
+  python benchmark.py --category hybrid_50 hybrid_100
+
+  # Run split extractors
+  python benchmark.py --category split_2 split_4 split_8
 
   # Run specific extractors
   python benchmark.py -e pymupdf pypdfium2 pdftotext
@@ -422,6 +622,25 @@ Examples:
 
   # More benchmark iterations for accuracy
   python benchmark.py --runs 5 --warmup 2
+
+  # Control worker count
+  python benchmark.py --workers 8
+
+  # Run in sync mode (not async)
+  python benchmark.py --sync
+
+Environment Variables:
+  BENCHMARK_WORKERS     Default worker count (default: 4)
+  BENCHMARK_CPU_COUNT   Override detected CPU count
+
+Categories:
+  single      Single-threaded extractors
+  parallel    Parallel extractors (page-range based)
+  hybrid_50   Hybrid: single < 50 pages, parallel >= 50 pages
+  hybrid_100  Hybrid: single < 100 pages, parallel >= 100 pages
+  split_2     Split PDF into 2 chunks, extract in parallel
+  split_4     Split PDF into 4 chunks, extract in parallel
+  split_8     Split PDF into 8 chunks, extract in parallel
         """,
     )
 
@@ -444,6 +663,13 @@ Examples:
         help="Specific extractors to run (default: all)",
     )
     parser.add_argument(
+        "-c", "--category",
+        nargs="+",
+        choices=list(EXTRACTOR_CATEGORIES.keys()),
+        default=None,
+        help="Run extractors from specific categories",
+    )
+    parser.add_argument(
         "-p", "--pdfs",
         nargs="+",
         default=None,
@@ -462,18 +688,19 @@ Examples:
         help="Number of warmup runs per test (default: 1)",
     )
     parser.add_argument(
-        "--single-only",
-        action="store_true",
-        help="Run only single-threaded extractors",
+        "--workers",
+        type=int,
+        default=None,
+        help=f"Number of workers for thread pool (default: {get_default_workers()})",
     )
     parser.add_argument(
-        "--parallel-only",
+        "--sync",
         action="store_true",
-        help="Run only parallel extractors",
+        help="Run in synchronous mode (not async)",
     )
     parser.add_argument(
         "--group-by",
-        choices=["pdf", "extractor", "flat"],
+        choices=["pdf", "extractor", "category", "flat"],
         default="pdf",
         help="How to group results in output (default: pdf)",
     )
@@ -493,12 +720,20 @@ Examples:
     # Determine which extractors to run
     if args.extractors:
         extractors = args.extractors
-    elif args.single_only:
-        extractors = list(SINGLE_THREADED_EXTRACTORS.keys())
-    elif args.parallel_only:
-        extractors = list(PARALLEL_EXTRACTORS.keys())
+    elif args.category:
+        extractors = []
+        for cat in args.category:
+            extractors.extend(EXTRACTOR_CATEGORIES.get(cat, []))
     else:
-        extractors = list(ALL_EXTRACTORS.keys())
+        # Default: run single, parallel, hybrid_50, and split_4
+        extractors = (
+            EXTRACTOR_CATEGORIES["single"] +
+            EXTRACTOR_CATEGORIES["parallel"] +
+            EXTRACTOR_CATEGORIES["hybrid_50"] +
+            EXTRACTOR_CATEGORIES["split_4"]
+        )
+
+    workers = args.workers if args.workers else get_default_workers()
 
     config = BenchmarkConfig(
         pdf_dir=args.pdf_dir,
@@ -508,14 +743,22 @@ Examples:
         extractors=extractors,
         pdfs=args.pdfs or [],
         verbose=args.verbose,
+        use_async=not args.sync,
+        workers=workers,
     )
 
     print("=" * 60)
     print("PDF TEXT EXTRACTION BENCHMARK")
     print("=" * 60)
+    print(f"CPU Count: {get_cpu_count()}")
+    print(f"Workers: {workers}")
+    print(f"Async Mode: {config.use_async}")
 
     # Run benchmarks
-    results = run_benchmarks(config)
+    try:
+        results = run_benchmarks(config)
+    finally:
+        shutdown_cpu_pool()
 
     if not results:
         print("No results generated")
@@ -532,7 +775,7 @@ Examples:
 
     # Save results
     if not args.no_save:
-        output_file = save_results(results, config.results_dir)
+        output_file = save_results(results, config.results_dir, config)
         print(f"\nResults saved to: {output_file}")
 
 
