@@ -1,0 +1,18 @@
+# PDF Rendering Libraries
+pymupdf>=1.24.0
+pypdfium2>=4.0.0
+pdf2image>=1.16.0
+pypdf>=4.0.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# Utilities
+requests>=2.31.0
+tabulate>=0.9.0
+tqdm>=4.66.0
+
+# Note: pdf2image requires Poppler to be installed on the system
+# On Debian/Ubuntu: apt-get install poppler-utils
+# On macOS: brew install poppler
+# On Alpine: apk add poppler-utils
