@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # Mount sample PDFs directory
+      - ./sample_pdfs:/app/sample_pdfs:ro
+      # Mount results directory for output
+      - ./results:/app/results
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Default command runs the benchmark
+    command: ["python", "benchmark.py"]
+    # Allow sufficient resources for parallel processing
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 4G
+
+  # Service to download sample PDFs
+  download:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./sample_pdfs:/app/sample_pdfs
+    command: ["python", "download_samples.py", "-o", "/app/sample_pdfs"]
