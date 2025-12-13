@@ -29,7 +29,8 @@ from typing import Any, Dict, List, Optional, Union
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
-from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn, nsmap
 from docx.oxml.table import CT_Tbl
 from docx.shared import Pt, RGBColor
 from docx.table import Table
@@ -87,6 +88,293 @@ def _str_to_align(s: Optional[str]):
         return WD_ALIGN_PARAGRAPH(int(s))
     except Exception:
         return None
+
+
+def _twips_to_pt(twips) -> Optional[float]:
+    """Convert twips (1/20 of a point) to points."""
+    if twips is None:
+        return None
+    try:
+        return int(twips) / 20.0
+    except Exception:
+        return None
+
+
+# -----------------------------
+# Numbering/Bullet helpers
+# -----------------------------
+
+class NumberingResolver:
+    """
+    Parses numbering.xml to:
+      - map numId -> abstractNumId
+      - summarize abstractNumId level defs (numFmt, lvlText, bullet font, indent)
+      - ensure a numId exists for a given abstractNumId in the output doc
+    """
+    def __init__(self, doc: Document):
+        self.doc = doc
+        self.numbering_el = None
+        self.numId_to_abstract: Dict[int, int] = {}
+        self.abstract_to_numIds: Dict[int, List[int]] = {}
+        self.abstract_levels: Dict[int, Dict[int, Dict[str, Any]]] = {}
+
+        try:
+            self.numbering_el = doc.part.numbering_part.element
+        except Exception:
+            self.numbering_el = None
+
+        if self.numbering_el is not None:
+            self._parse_numbering()
+
+    def _parse_numbering(self) -> None:
+        numbering = self.numbering_el
+
+        # numId -> abstractNumId
+        for num in numbering.iterchildren():
+            if num.tag != qn("w:num"):
+                continue
+            numId_raw = num.get(qn("w:numId"))
+            if numId_raw is None:
+                continue
+            try:
+                numId = int(numId_raw)
+            except Exception:
+                continue
+
+            abs_el = num.find(qn("w:abstractNumId"))
+            if abs_el is None:
+                continue
+            abs_raw = abs_el.get(qn("w:val"))
+            if abs_raw is None:
+                continue
+            try:
+                abstractNumId = int(abs_raw)
+            except Exception:
+                continue
+
+            self.numId_to_abstract[numId] = abstractNumId
+            self.abstract_to_numIds.setdefault(abstractNumId, []).append(numId)
+
+        # abstractNumId -> {ilvl -> level summary}
+        for absn in numbering.iterchildren():
+            if absn.tag != qn("w:abstractNum"):
+                continue
+            abs_raw = absn.get(qn("w:abstractNumId"))
+            if abs_raw is None:
+                continue
+            try:
+                abstractNumId = int(abs_raw)
+            except Exception:
+                continue
+
+            levels: Dict[int, Dict[str, Any]] = {}
+            for lvl in absn.iterchildren():
+                if lvl.tag != qn("w:lvl"):
+                    continue
+                ilvl_raw = lvl.get(qn("w:ilvl"))
+                if ilvl_raw is None:
+                    continue
+                try:
+                    ilvl = int(ilvl_raw)
+                except Exception:
+                    continue
+
+                numFmt_el = lvl.find(qn("w:numFmt"))
+                numFmt = numFmt_el.get(qn("w:val")) if numFmt_el is not None else None
+
+                lvlText_el = lvl.find(qn("w:lvlText"))
+                lvlText = lvlText_el.get(qn("w:val")) if lvlText_el is not None else None
+
+                # bullet font often stored on lvl/rPr/rFonts
+                font = None
+                rPr = lvl.find(qn("w:rPr"))
+                if rPr is not None:
+                    rFonts = rPr.find(qn("w:rFonts"))
+                    if rFonts is not None:
+                        font = (
+                            rFonts.get(qn("w:ascii"))
+                            or rFonts.get(qn("w:hAnsi"))
+                            or rFonts.get(qn("w:cs"))
+                            or rFonts.get(qn("w:hint"))
+                        )
+
+                # indent stored on lvl/pPr/ind (twips)
+                left_tw = hanging_tw = None
+                pPr = lvl.find(qn("w:pPr"))
+                if pPr is not None:
+                    ind = pPr.find(qn("w:ind"))
+                    if ind is not None:
+                        left_tw = ind.get(qn("w:left"))
+                        hanging_tw = ind.get(qn("w:hanging"))
+
+                levels[ilvl] = {
+                    "numFmt": numFmt,
+                    "lvlText": lvlText,
+                    "font": font,
+                    "leftIndentPt": _twips_to_pt(left_tw),
+                    "hangingPt": _twips_to_pt(hanging_tw),
+                }
+
+            self.abstract_levels[abstractNumId] = levels
+
+    def paragraph_num(self, p: Paragraph) -> Optional[tuple]:
+        """Get (numId, ilvl) for a paragraph, or None if not a list item."""
+        numId = p._p.xpath("./w:pPr/w:numPr/w:numId/@w:val")
+        ilvl = p._p.xpath("./w:pPr/w:numPr/w:ilvl/@w:val")
+        if not numId:
+            return None
+        try:
+            n = int(numId[0])
+        except Exception:
+            return None
+        try:
+            lvl = int(ilvl[0]) if ilvl else 0
+        except Exception:
+            lvl = 0
+        return (n, lvl)
+
+    def abstract_for_num(self, numId: int) -> Optional[int]:
+        return self.numId_to_abstract.get(numId)
+
+    def level_def(self, abstractNumId: int, ilvl: int) -> Optional[Dict[str, Any]]:
+        levels = self.abstract_levels.get(abstractNumId) or {}
+        return levels.get(ilvl) or levels.get(0)
+
+    def is_bullet(self, numId: int, ilvl: int) -> bool:
+        absId = self.abstract_for_num(numId)
+        if absId is None:
+            return False
+        ld = self.level_def(absId, ilvl) or {}
+        return (ld.get("numFmt") == "bullet")
+
+    def ensure_numId_for_abstract(self, abstractNumId: int) -> Optional[int]:
+        """
+        Return an existing numId referencing abstractNumId, or create one in numbering.xml.
+        This is only needed at render-time into the template doc.
+        """
+        if self.numbering_el is None:
+            return None
+
+        existing = (self.abstract_to_numIds.get(abstractNumId) or [])
+        if existing:
+            return existing[0]
+
+        # allocate new numId = max+1
+        all_numIds = list(self.numId_to_abstract.keys())
+        new_numId = (max(all_numIds) + 1) if all_numIds else 1
+
+        num = OxmlElement("w:num")
+        num.set(qn("w:numId"), str(new_numId))
+
+        abs_el = OxmlElement("w:abstractNumId")
+        abs_el.set(qn("w:val"), str(abstractNumId))
+        num.append(abs_el)
+
+        self.numbering_el.append(num)
+
+        self.numId_to_abstract[new_numId] = abstractNumId
+        self.abstract_to_numIds.setdefault(abstractNumId, []).append(new_numId)
+        return new_numId
+
+
+def _set_paragraph_numPr(p: Paragraph, numId: int, ilvl: int) -> None:
+    """
+    Low-level: set w:numPr on paragraph to drive bullets/numbers & nesting level.
+    """
+    pPr = p._p.get_or_add_pPr()
+
+    # remove existing numPr if present
+    existing = pPr.find(qn("w:numPr"))
+    if existing is not None:
+        pPr.remove(existing)
+
+    numPr = OxmlElement("w:numPr")
+
+    ilvl_el = OxmlElement("w:ilvl")
+    ilvl_el.set(qn("w:val"), str(int(ilvl)))
+    numPr.append(ilvl_el)
+
+    numId_el = OxmlElement("w:numId")
+    numId_el.set(qn("w:val"), str(int(numId)))
+    numPr.append(numId_el)
+
+    pPr.append(numPr)
+
+
+class BulletStyleCatalog:
+    """
+    Maps abstractNumId -> B-code.
+    Stores defs used in DocxLang:
+      B1: { abstractNumId: 5, levels: {0:{lvlText:'•',...}, 1:{...}} }
+    """
+    def __init__(self, base: Optional[Dict[str, Dict[str, Any]]] = None):
+        self.code_to_def: Dict[str, Dict[str, Any]] = dict(base or {})
+        self.abstract_to_code: Dict[int, str] = {}
+        for code, d in self.code_to_def.items():
+            absId = d.get("abstractNumId")
+            if isinstance(absId, int):
+                self.abstract_to_code[absId] = code
+
+    def _next_code(self) -> str:
+        max_n = 0
+        for code in self.code_to_def.keys():
+            if code.startswith("B"):
+                try:
+                    max_n = max(max_n, int(code[1:]))
+                except Exception:
+                    pass
+        return f"B{max_n + 1}"
+
+    def ensure_from_abstract(self, abstractNumId: int, resolver: NumberingResolver) -> str:
+        existing = self.abstract_to_code.get(abstractNumId)
+        if existing:
+            return existing
+
+        code = self._next_code()
+        self.abstract_to_code[abstractNumId] = code
+
+        self.code_to_def[code] = {
+            "abstractNumId": abstractNumId,
+            "levels": resolver.abstract_levels.get(abstractNumId, {}),
+        }
+        return code
+
+    def build_from_doc(self, doc: Document, resolver: NumberingResolver, include_unused: bool = True) -> None:
+        """
+        Include all bullet abstractNum definitions (include_unused=True),
+        OR only those actually referenced by paragraphs (include_unused=False).
+        """
+        bullet_absIds: set = set()
+
+        if include_unused:
+            for absId, levels in (resolver.abstract_levels or {}).items():
+                # consider it a bullet list if level 0 is bullet OR any level is bullet
+                if any((lvl.get("numFmt") == "bullet") for lvl in levels.values()):
+                    bullet_absIds.add(absId)
+        else:
+            for p in doc.paragraphs:
+                info = resolver.paragraph_num(p)
+                if not info:
+                    continue
+                numId, ilvl = info
+                absId = resolver.abstract_for_num(numId)
+                if absId is None:
+                    continue
+                if resolver.is_bullet(numId, ilvl):
+                    bullet_absIds.add(absId)
+
+        for absId in sorted(bullet_absIds):
+            self.ensure_from_abstract(absId, resolver)
+
+    def as_dict(self) -> Dict[str, Dict[str, Any]]:
+        return dict(self.code_to_def)
+
+    def default_code(self) -> Optional[str]:
+        codes = sorted(self.code_to_def.keys(), key=lambda c: int(c[1:]) if c[1:].isdigit() else 999999)
+        return codes[0] if codes else None
+
+    def has_multiple(self) -> bool:
+        return len(self.code_to_def) > 1
 
 
 # -----------------------------
@@ -208,7 +496,12 @@ def _get_numbering_info(p: Paragraph) -> Optional[Dict[str, Any]]:
     return info
 
 
-def paragraph_to_block(p: Paragraph, catalog: StyleCatalog) -> Dict[str, Any]:
+def paragraph_to_block(
+    p: Paragraph,
+    catalog: StyleCatalog,
+    resolver: Optional[NumberingResolver] = None,
+    bullet_styles: Optional[BulletStyleCatalog] = None,
+) -> Dict[str, Any]:
     pStyle = catalog.ensure("paragraph", p.style.name if p.style is not None else None)
 
     override: Dict[str, Any] = {}
@@ -245,9 +538,30 @@ def paragraph_to_block(p: Paragraph, catalog: StyleCatalog) -> Dict[str, Any]:
             except Exception:
                 pass
 
-    numinfo = _get_numbering_info(p)
-    if numinfo:
-        override["numbering"] = numinfo
+    # List/bullet capture driven by numbering.xml
+    if resolver is not None and bullet_styles is not None:
+        numinfo = resolver.paragraph_num(p)
+        if numinfo:
+            numId, ilvl = numinfo
+            absId = resolver.abstract_for_num(numId)
+            if absId is not None and resolver.is_bullet(numId, ilvl):
+                bcode = bullet_styles.ensure_from_abstract(absId, resolver)
+
+                # store LLM-friendly list ref (do NOT store raw numId)
+                override["list"] = {"kind": "bullet", "level": ilvl}
+                # only include explicit style if there are multiple
+                if bullet_styles.has_multiple():
+                    override["list"]["style"] = bcode
+
+                # avoid fighting list indentation: let numbering definition control it
+                override.pop("leftIndentPt", None)
+                override.pop("firstLineIndentPt", None)
+                override.pop("rightIndentPt", None)
+    else:
+        # Fallback to old numbering info if resolver not provided
+        numinfo = _get_numbering_info(p)
+        if numinfo:
+            override["numbering"] = numinfo
 
     runs: List[Dict[str, Any]] = []
     for r in p.runs:
@@ -317,7 +631,12 @@ def paragraph_to_block(p: Paragraph, catalog: StyleCatalog) -> Dict[str, Any]:
     return out
 
 
-def table_to_block(t: Table, catalog: StyleCatalog) -> Dict[str, Any]:
+def table_to_block(
+    t: Table,
+    catalog: StyleCatalog,
+    resolver: Optional[NumberingResolver] = None,
+    bullet_styles: Optional[BulletStyleCatalog] = None,
+) -> Dict[str, Any]:
     tblStyleName = None
     try:
         tblStyleName = t.style.name if t.style is not None else None
@@ -333,7 +652,7 @@ def table_to_block(t: Table, catalog: StyleCatalog) -> Dict[str, Any]:
             for p in cell.paragraphs:
                 if (p.text or "").strip() == "" and len(p.runs) == 0:
                     continue
-                cell_blocks.append(paragraph_to_block(p, catalog))
+                cell_blocks.append(paragraph_to_block(p, catalog, resolver, bullet_styles))
             if not cell_blocks:
                 cell_blocks.append({"type": "paragraph", "runs": []})
             row_cells.append({"blocks": cell_blocks})
@@ -517,22 +836,43 @@ def extract_style_defs(doc: Document, catalog: StyleCatalog) -> Dict[str, Dict[s
 def docx_to_docxlang(
     docx_path: str,
     base_catalog: Optional[Dict[str, Dict[str, str]]] = None,
+    base_list_styles: Optional[Dict[str, Any]] = None,
     include_style_defs: bool = False,
+    group_bullets: bool = True,
 ) -> Dict[str, Any]:
     """
     Convert a .docx to DocxLang v1.
 
     If base_catalog is provided (recommended: derived from your golden template),
     codes remain stable and the catalog is reused/extended.
+
+    If group_bullets is True (default), consecutive bullet paragraphs are grouped
+    into bulleted_list blocks with nested level information.
     """
     doc = Document(docx_path)
     catalog = StyleCatalog(base_catalog)
 
+    # Set up numbering/bullet handling
+    resolver = NumberingResolver(doc)
+    bullet_styles = BulletStyleCatalog(
+        (base_list_styles or {}).get("bullets") if base_list_styles else None
+    )
+    bullet_styles.build_from_doc(doc, resolver, include_unused=True)
+
     blocks: List[Dict[str, Any]] = []
+    pending_bullets: Optional[Dict[str, Any]] = None
+
+    def flush_pending_bullets():
+        nonlocal pending_bullets
+        if pending_bullets is not None:
+            blocks.append(pending_bullets)
+            pending_bullets = None
+
     for item in iter_block_items(doc):
         if isinstance(item, Paragraph):
             # If it's a pure page-break paragraph, represent it as a block.
             if _paragraph_contains_page_break(item) and (item.text or "").strip() == "":
+                flush_pending_bullets()
                 pb_block: Dict[str, Any] = {"type": "page_break"}
                 # Preserve paragraph style on page break blocks
                 if item.style is not None:
@@ -541,15 +881,52 @@ def docx_to_docxlang(
                         pb_block["pStyle"] = pStyle
                 blocks.append(pb_block)
             else:
-                blocks.append(paragraph_to_block(item, catalog))
+                pb = paragraph_to_block(item, catalog, resolver, bullet_styles)
+                list_ref = (pb.get("override") or {}).get("list")
+
+                if group_bullets and list_ref and list_ref.get("kind") == "bullet":
+                    # Extract list info from paragraph for grouping
+                    level = int(list_ref.get("level", 0))
+                    style = list_ref.get("style")
+
+                    # Remove list from paragraph override (list block owns it)
+                    if pb.get("override"):
+                        pb["override"].pop("list", None)
+                        if not pb["override"]:
+                            pb.pop("override", None)
+
+                    # Start new list or continue existing one
+                    if pending_bullets is None or pending_bullets.get("style") != style:
+                        flush_pending_bullets()
+                        pending_bullets = {"type": "bulleted_list", "items": []}
+                        if style is not None:
+                            pending_bullets["style"] = style
+
+                    pending_bullets["items"].append({"level": level, "paragraph": pb})
+                else:
+                    # Non-bullet paragraph
+                    flush_pending_bullets()
+                    blocks.append(pb)
         elif isinstance(item, Table):
-            blocks.append(table_to_block(item, catalog))
+            flush_pending_bullets()
+            blocks.append(table_to_block(item, catalog, resolver, bullet_styles))
+
+    # Flush any remaining bullets
+    flush_pending_bullets()
 
     out: Dict[str, Any] = {
         "schema": "docxlang/v1",
         "styles": catalog.as_dict(),
         "blocks": blocks,
     }
+
+    # Add list styles if any bullet definitions exist
+    if bullet_styles.as_dict():
+        out["list_styles"] = {"bullets": bullet_styles.as_dict()}
+        default_b = bullet_styles.default_code()
+        if default_b:
+            out["defaults"] = {"bullet": default_b}
+
     if include_style_defs:
         out["style_defs"] = extract_style_defs(doc, catalog)
     return out
@@ -618,7 +995,46 @@ def _apply_run_override(run, override: Dict[str, Any]) -> None:
             pass
 
 
-def _render_paragraph(p: Paragraph, block: Dict[str, Any], catalog: StyleCatalog) -> None:
+def _apply_list_ref(
+    p: Paragraph,
+    list_ref: Dict[str, Any],
+    bullet_defs: Dict[str, Dict[str, Any]],
+    defaults: Dict[str, Any],
+    num_resolver: NumberingResolver,
+) -> None:
+    """Apply bullet/numbering to a paragraph based on list_ref."""
+    if not list_ref:
+        return
+    if list_ref.get("kind") != "bullet":
+        return
+
+    level = int(list_ref.get("level", 0))
+    style = list_ref.get("style") or defaults.get("bullet")
+    if not style:
+        return
+    bdef = bullet_defs.get(style)
+    if not bdef:
+        return
+
+    absId = bdef.get("abstractNumId")
+    if not isinstance(absId, int):
+        return
+
+    numId = num_resolver.ensure_numId_for_abstract(absId)
+    if numId is None:
+        return
+
+    _set_paragraph_numPr(p, numId=numId, ilvl=level)
+
+
+def _render_paragraph(
+    p: Paragraph,
+    block: Dict[str, Any],
+    catalog: StyleCatalog,
+    bullet_defs: Optional[Dict[str, Dict[str, Any]]] = None,
+    defaults: Optional[Dict[str, Any]] = None,
+    num_resolver: Optional[NumberingResolver] = None,
+) -> None:
     _clear_paragraph(p)
 
     style_name = catalog.name("paragraph", block.get("pStyle"))
@@ -647,6 +1063,12 @@ def _render_paragraph(p: Paragraph, block: Dict[str, Any], catalog: StyleCatalog
                 pass
         _apply_run_override(run, run_item.get("override") or {})
 
+    # Apply bullets/nesting after content is in place
+    if bullet_defs is not None and defaults is not None and num_resolver is not None:
+        list_ref = (block.get("override") or {}).get("list")
+        if list_ref:
+            _apply_list_ref(p, list_ref, bullet_defs, defaults, num_resolver)
+
 
 def _insert_table_before(anchor: Paragraph, rows: int, cols: int, doc: Document) -> Table:
     """
@@ -665,7 +1087,15 @@ def _insert_table_before(anchor: Paragraph, rows: int, cols: int, doc: Document)
     return Table(tbl, anchor._parent)
 
 
-def _render_table_before(anchor: Paragraph, block: Dict[str, Any], catalog: StyleCatalog, doc: Document) -> None:
+def _render_table_before(
+    anchor: Paragraph,
+    block: Dict[str, Any],
+    catalog: StyleCatalog,
+    doc: Document,
+    bullet_defs: Optional[Dict[str, Dict[str, Any]]] = None,
+    defaults: Optional[Dict[str, Any]] = None,
+    num_resolver: Optional[NumberingResolver] = None,
+) -> None:
     rows_data = block.get("rows") or []
     rows = len(rows_data) or 1
     cols = len(rows_data[0]) if rows_data else 1
@@ -697,7 +1127,7 @@ def _render_table_before(anchor: Paragraph, block: Dict[str, Any], catalog: Styl
                 if para_block.get("type") != "paragraph":
                     continue
                 cp = cell.add_paragraph()
-                _render_paragraph(cp, para_block, catalog)
+                _render_paragraph(cp, para_block, catalog, bullet_defs, defaults, num_resolver)
 
 
 def _find_anchor_paragraph(doc: Document, anchor_text: str) -> Optional[Paragraph]:
@@ -726,7 +1156,7 @@ def docxlang_to_docx(
     Render DocxLang v1 into a .docx using a golden template.
 
     Strategy:
-    - If anchor_text exists: insert blocks *before* anchor in reverse order, then remove anchor.
+    - If anchor_text exists: insert blocks *before* anchor, then remove anchor.
       (This preserves anything before/after the placeholder and preserves headers/footers.)
     - If anchor_text not found:
         - optionally clear body content (preserving section properties) if clear_body_if_no_anchor=True
@@ -736,69 +1166,76 @@ def docxlang_to_docx(
     catalog = StyleCatalog(docxlang.get("styles") or {})
     blocks = docxlang.get("blocks") or []
 
+    # Set up bullet/list handling
+    defaults = docxlang.get("defaults") or {}
+    bullet_defs = (docxlang.get("list_styles") or {}).get("bullets") or {}
+    num_resolver = NumberingResolver(doc)
+
     anchor = _find_anchor_paragraph(doc, anchor_text)
 
-    if anchor is None:
-        if clear_body_if_no_anchor:
-            # internal API but widely used; preserves sectPr (important for headers/footers)
-            doc._body.clear_content()
-
-        # Append blocks at end in forward order
-        for b in blocks:
-            btype = b.get("type")
-            if btype == "page_break":
+    def render_block_append(b: Dict[str, Any]) -> None:
+        """Render a block by appending to end of document."""
+        btype = b.get("type")
+        if btype == "page_break":
+            p = doc.add_paragraph()
+            p.add_run().add_break(WD_BREAK.PAGE)
+            style_name = catalog.name("paragraph", b.get("pStyle"))
+            if style_name:
+                try:
+                    p.style = style_name
+                except KeyError:
+                    pass
+        elif btype == "paragraph":
+            p = doc.add_paragraph()
+            _render_paragraph(p, b, catalog, bullet_defs, defaults, num_resolver)
+        elif btype == "bulleted_list":
+            # Render each item in the bulleted list
+            style = b.get("style")
+            for it in (b.get("items") or []):
+                level = int(it.get("level", 0))
+                para_block = it.get("paragraph") or {"type": "paragraph", "runs": []}
                 p = doc.add_paragraph()
-                p.add_run().add_break(WD_BREAK.PAGE)
-                # Apply style if specified on page break
-                style_name = catalog.name("paragraph", b.get("pStyle"))
-                if style_name:
+                _render_paragraph(p, para_block, catalog, bullet_defs, defaults, num_resolver)
+                # Apply the correct bullet scheme + level
+                list_ref = {"kind": "bullet", "level": level}
+                if style:
+                    list_ref["style"] = style
+                _apply_list_ref(p, list_ref, bullet_defs, defaults, num_resolver)
+        elif btype == "table":
+            rows_data = b.get("rows") or []
+            rows = len(rows_data) or 1
+            cols = len(rows_data[0]) if rows_data else 1
+            tbl = doc.add_table(rows=rows, cols=cols)
+            tbl_style_name = catalog.name("table", b.get("tblStyle"))
+            if tbl_style_name:
+                try:
+                    tbl.style = tbl_style_name
+                except KeyError:
+                    pass
+            for r_i in range(rows):
+                for c_i in range(cols):
+                    cell_obj = (
+                        rows_data[r_i][c_i]
+                        if rows_data and r_i < len(rows_data) and c_i < len(rows_data[r_i])
+                        else {"blocks": []}
+                    )
+                    cell = tbl.cell(r_i, c_i)
                     try:
-                        p.style = style_name
-                    except KeyError:
+                        cell._tc.clear_content()
+                    except Exception:
                         pass
-            elif btype == "paragraph":
-                p = doc.add_paragraph()
-                _render_paragraph(p, b, catalog)
-            elif btype == "table":
-                # simplest end-append: create then fill
-                rows_data = b.get("rows") or []
-                rows = len(rows_data) or 1
-                cols = len(rows_data[0]) if rows_data else 1
-                tbl = doc.add_table(rows=rows, cols=cols)
-                tbl_style_name = catalog.name("table", b.get("tblStyle"))
-                if tbl_style_name:
-                    try:
-                        tbl.style = tbl_style_name
-                    except KeyError:
-                        pass
-                for r_i in range(rows):
-                    for c_i in range(cols):
-                        cell_obj = (
-                            rows_data[r_i][c_i]
-                            if rows_data and r_i < len(rows_data) and c_i < len(rows_data[r_i])
-                            else {"blocks": []}
-                        )
-                        cell = tbl.cell(r_i, c_i)
-                        try:
-                            cell._tc.clear_content()
-                        except Exception:
-                            pass
-                        for para_block in (cell_obj.get("blocks") or []):
-                            if para_block.get("type") != "paragraph":
-                                continue
-                            cp = cell.add_paragraph()
-                            _render_paragraph(cp, para_block, catalog)
+                    for para_block in (cell_obj.get("blocks") or []):
+                        if para_block.get("type") != "paragraph":
+                            continue
+                        cp = cell.add_paragraph()
+                        _render_paragraph(cp, para_block, catalog, bullet_defs, defaults, num_resolver)
 
-        doc.save(output_path)
-        return
-
-    # Insert blocks before anchor in reverse order to preserve final order
-    for b in reversed(blocks):
+    def render_block_before_anchor(b: Dict[str, Any]) -> None:
+        """Render a block by inserting before anchor paragraph."""
         btype = b.get("type")
         if btype == "page_break":
             p = anchor.insert_paragraph_before()
             p.add_run().add_break(WD_BREAK.PAGE)
-            # Apply style if specified on page break
             style_name = catalog.name("paragraph", b.get("pStyle"))
             if style_name:
                 try:
@@ -807,9 +1244,37 @@ def docxlang_to_docx(
                     pass
         elif btype == "paragraph":
             p = anchor.insert_paragraph_before()
-            _render_paragraph(p, b, catalog)
+            _render_paragraph(p, b, catalog, bullet_defs, defaults, num_resolver)
+        elif btype == "bulleted_list":
+            # Render each item in the bulleted list
+            style = b.get("style")
+            for it in (b.get("items") or []):
+                level = int(it.get("level", 0))
+                para_block = it.get("paragraph") or {"type": "paragraph", "runs": []}
+                p = anchor.insert_paragraph_before()
+                _render_paragraph(p, para_block, catalog, bullet_defs, defaults, num_resolver)
+                # Apply the correct bullet scheme + level
+                list_ref = {"kind": "bullet", "level": level}
+                if style:
+                    list_ref["style"] = style
+                _apply_list_ref(p, list_ref, bullet_defs, defaults, num_resolver)
         elif btype == "table":
-            _render_table_before(anchor, b, catalog, doc)
+            _render_table_before(anchor, b, catalog, doc, bullet_defs, defaults, num_resolver)
+
+    if anchor is None:
+        if clear_body_if_no_anchor:
+            doc._body.clear_content()
+
+        # Append blocks at end in forward order
+        for b in blocks:
+            render_block_append(b)
+
+        doc.save(output_path)
+        return
+
+    # Insert blocks before anchor in forward order (insert_paragraph_before inserts just above)
+    for b in blocks:
+        render_block_before_anchor(b)
 
     # Remove the anchor paragraph itself
     try:

@@ -20,12 +20,7 @@
       "pStyle": "S1",
       "override": {
         "spaceBeforePt": 0.0,
-        "spaceAfterPt": 0.0,
-        "numbering": {
-          "numId": 0,
-          "level": 0,
-          "kind": "unknown"
-        }
+        "spaceAfterPt": 0.0
       }
     },
     {
@@ -39,12 +34,7 @@
       "pStyle": "S1",
       "override": {
         "spaceBeforePt": 0.0,
-        "spaceAfterPt": 0.0,
-        "numbering": {
-          "numId": 0,
-          "level": 0,
-          "kind": "unknown"
-        }
+        "spaceAfterPt": 0.0
       }
     },
     {
@@ -55,14 +45,7 @@
           "text": "Proposal"
         }
       ],
-      "pStyle": "S2",
-      "override": {
-        "numbering": {
-          "numId": 0,
-          "level": 0,
-          "kind": "unknown"
-        }
-      }
+      "pStyle": "S2"
     },
     {
       "type": "paragraph",
@@ -72,14 +55,7 @@
           "text": "December 1, 2025"
         }
       ],
-      "pStyle": "S2",
-      "override": {
-        "numbering": {
-          "numId": 0,
-          "level": 0,
-          "kind": "unknown"
-        }
-      }
+      "pStyle": "S2"
     },
     {
       "type": "paragraph",
@@ -556,6 +532,761 @@
       "pStyle": "S5"
     }
   ],
+  "list_styles": {
+    "bullets": {
+      "B1": {
+        "abstractNumId": 1,
+        "levels": {
+          "0": {
+            "numFmt": "none",
+            "lvlText": "%1",
+            "font": "Book Antiqua",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "1": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 117.35,
+            "hangingPt": 9.35
+          },
+          "2": {
+            "numFmt": "bullet",
+            "lvlText": "‒",
+            "font": "Arial",
+            "leftIndentPt": 48.6,
+            "hangingPt": 12.6
+          },
+          "3": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 63.35,
+            "hangingPt": 9.35
+          },
+          "4": {
+            "numFmt": "lowerLetter",
+            "lvlText": "(%5)",
+            "font": "default",
+            "leftIndentPt": 90.0,
+            "hangingPt": 18.0
+          },
+          "5": {
+            "numFmt": "lowerRoman",
+            "lvlText": "(%6)",
+            "font": "default",
+            "leftIndentPt": 108.0,
+            "hangingPt": 18.0
+          },
+          "6": {
+            "numFmt": "decimal",
+            "lvlText": "%7.",
+            "font": "default",
+            "leftIndentPt": 126.0,
+            "hangingPt": 18.0
+          },
+          "7": {
+            "numFmt": "lowerLetter",
+            "lvlText": "%8.",
+            "font": "default",
+            "leftIndentPt": 144.0,
+            "hangingPt": 18.0
+          },
+          "8": {
+            "numFmt": "lowerRoman",
+            "lvlText": "%9.",
+            "font": "default",
+            "leftIndentPt": 162.0,
+            "hangingPt": 18.0
+          }
+        }
+      },
+      "B2": {
+        "abstractNumId": 2,
+        "levels": {
+          "0": {
+            "numFmt": "none",
+            "lvlText": "%1",
+            "font": "Book Antiqua",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "1": {
+            "numFmt": "none",
+            "lvlText": "%2",
+            "font": "Book Antiqua",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "2": {
+            "numFmt": "none",
+            "lvlText": "",
+            "font": "Cambria",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "3": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 18.0,
+            "hangingPt": 9.35
+          },
+          "4": {
+            "numFmt": "bullet",
+            "lvlText": "–",
+            "font": "Cambria",
+            "leftIndentPt": 32.4,
+            "hangingPt": 9.35
+          },
+          "5": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 44.65,
+            "hangingPt": 8.65
+          },
+          "6": {
+            "numFmt": "none",
+            "lvlText": "%7",
+            "font": "Cambria",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "7": {
+            "numFmt": "none",
+            "lvlText": "%8",
+            "font": null,
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "8": {
+            "numFmt": "none",
+            "lvlText": "%9",
+            "font": null,
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          }
+        }
+      },
+      "B3": {
+        "abstractNumId": 3,
+        "levels": {
+          "0": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 10.8,
+            "hangingPt": 10.8
+          },
+          "1": {
+            "numFmt": "bullet",
+            "lvlText": "–",
+            "font": "Book Antiqua",
+            "leftIndentPt": 32.4,
+            "hangingPt": 10.8
+          },
+          "2": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 54.0,
+            "hangingPt": 10.8
+          },
+          "3": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 75.6,
+            "hangingPt": 10.8
+          },
+          "4": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 97.2,
+            "hangingPt": 10.8
+          },
+          "5": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 118.8,
+            "hangingPt": 10.8
+          },
+          "6": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 140.4,
+            "hangingPt": 10.8
+          },
+          "7": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 162.0,
+            "hangingPt": 10.8
+          },
+          "8": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 183.6,
+            "hangingPt": 10.8
+          }
+        }
+      },
+      "B4": {
+        "abstractNumId": 4,
+        "levels": {
+          "0": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 40.3,
+            "hangingPt": 7.2
+          },
+          "1": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 72.0,
+            "hangingPt": 18.0
+          },
+          "2": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 108.0,
+            "hangingPt": 18.0
+          },
+          "3": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 144.0,
+            "hangingPt": 18.0
+          },
+          "4": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 180.0,
+            "hangingPt": 18.0
+          },
+          "5": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 216.0,
+            "hangingPt": 18.0
+          },
+          "6": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 252.0,
+            "hangingPt": 18.0
+          },
+          "7": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 288.0,
+            "hangingPt": 18.0
+          },
+          "8": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 324.0,
+            "hangingPt": 18.0
+          }
+        }
+      },
+      "B5": {
+        "abstractNumId": 6,
+        "levels": {
+          "0": {
+            "numFmt": "none",
+            "lvlText": "",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "1": {
+            "numFmt": "none",
+            "lvlText": "",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "2": {
+            "numFmt": "none",
+            "lvlText": "",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "3": {
+            "numFmt": "decimal",
+            "lvlText": "%4.",
+            "font": "Cambria",
+            "leftIndentPt": 21.6,
+            "hangingPt": 10.8
+          },
+          "4": {
+            "numFmt": "lowerLetter",
+            "lvlText": "%5.",
+            "font": "Cambria",
+            "leftIndentPt": 39.6,
+            "hangingPt": 10.8
+          },
+          "5": {
+            "numFmt": "lowerRoman",
+            "lvlText": "%6.",
+            "font": "Cambria",
+            "leftIndentPt": 54.0,
+            "hangingPt": 10.8
+          },
+          "6": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 75.6,
+            "hangingPt": 10.8
+          },
+          "7": {
+            "numFmt": "decimal",
+            "lvlText": "%8.",
+            "font": "Cambria",
+            "leftIndentPt": 25.2,
+            "hangingPt": 14.4
+          },
+          "8": {
+            "numFmt": "lowerLetter",
+            "lvlText": "%9.",
+            "font": "default",
+            "leftIndentPt": 46.8,
+            "hangingPt": 10.8
+          }
+        }
+      },
+      "B6": {
+        "abstractNumId": 7,
+        "levels": {
+          "0": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 10.8,
+            "hangingPt": 10.8
+          },
+          "1": {
+            "numFmt": "bullet",
+            "lvlText": "–",
+            "font": "aria",
+            "leftIndentPt": 32.4,
+            "hangingPt": 10.8
+          },
+          "2": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 54.0,
+            "hangingPt": 10.8
+          },
+          "3": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 75.6,
+            "hangingPt": 10.8
+          },
+          "4": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 97.2,
+            "hangingPt": 10.8
+          },
+          "5": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 118.8,
+            "hangingPt": 10.8
+          },
+          "6": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 140.4,
+            "hangingPt": 10.8
+          },
+          "7": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 162.0,
+            "hangingPt": 10.8
+          },
+          "8": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 183.6,
+            "hangingPt": 10.8
+          }
+        }
+      },
+      "B7": {
+        "abstractNumId": 8,
+        "levels": {
+          "0": {
+            "numFmt": "bullet",
+            "lvlText": "-",
+            "font": "Arial",
+            "leftIndentPt": 54.0,
+            "hangingPt": 18.0
+          },
+          "1": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 90.0,
+            "hangingPt": 18.0
+          },
+          "2": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 126.0,
+            "hangingPt": 18.0
+          },
+          "3": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 162.0,
+            "hangingPt": 18.0
+          },
+          "4": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 198.0,
+            "hangingPt": 18.0
+          },
+          "5": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 234.0,
+            "hangingPt": 18.0
+          },
+          "6": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 270.0,
+            "hangingPt": 18.0
+          },
+          "7": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 306.0,
+            "hangingPt": 18.0
+          },
+          "8": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 342.0,
+            "hangingPt": 18.0
+          }
+        }
+      },
+      "B8": {
+        "abstractNumId": 9,
+        "levels": {
+          "0": {
+            "numFmt": "none",
+            "lvlText": "%1",
+            "font": "Book Antiqua",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "1": {
+            "numFmt": "none",
+            "lvlText": "%2",
+            "font": "Book Antiqua",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "2": {
+            "numFmt": "none",
+            "lvlText": "",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "3": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 18.0,
+            "hangingPt": 9.35
+          },
+          "4": {
+            "numFmt": "bullet",
+            "lvlText": "–",
+            "font": "Cambria",
+            "leftIndentPt": 32.4,
+            "hangingPt": 9.35
+          },
+          "5": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 44.65,
+            "hangingPt": 8.65
+          },
+          "6": {
+            "numFmt": "none",
+            "lvlText": "%7",
+            "font": "Cambria",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "7": {
+            "numFmt": "none",
+            "lvlText": "%8",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "8": {
+            "numFmt": "none",
+            "lvlText": "%9",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          }
+        }
+      },
+      "B9": {
+        "abstractNumId": 10,
+        "levels": {
+          "0": {
+            "numFmt": "none",
+            "lvlText": "%1",
+            "font": "Book Antiqua",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "1": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "2": {
+            "numFmt": "none",
+            "lvlText": "",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "3": {
+            "numFmt": "bullet",
+            "lvlText": "‒",
+            "font": "Arial",
+            "leftIndentPt": 39.6,
+            "hangingPt": 10.8
+          },
+          "4": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 54.0,
+            "hangingPt": 10.8
+          },
+          "5": {
+            "numFmt": "none",
+            "lvlText": "",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "6": {
+            "numFmt": "decimal",
+            "lvlText": "%7.",
+            "font": "Cambria",
+            "leftIndentPt": 25.2,
+            "hangingPt": 14.4
+          },
+          "7": {
+            "numFmt": "lowerLetter",
+            "lvlText": "%8.",
+            "font": "default",
+            "leftIndentPt": 144.0,
+            "hangingPt": 18.0
+          },
+          "8": {
+            "numFmt": "lowerRoman",
+            "lvlText": "%9.",
+            "font": "default",
+            "leftIndentPt": 162.0,
+            "hangingPt": 18.0
+          }
+        }
+      },
+      "B10": {
+        "abstractNumId": 11,
+        "levels": {
+          "0": {
+            "numFmt": "bullet",
+            "lvlText": "−",
+            "font": "Book Antiqua",
+            "leftIndentPt": 36.0,
+            "hangingPt": 18.0
+          },
+          "1": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 72.0,
+            "hangingPt": 18.0
+          },
+          "2": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 108.0,
+            "hangingPt": 18.0
+          },
+          "3": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 144.0,
+            "hangingPt": 18.0
+          },
+          "4": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 180.0,
+            "hangingPt": 18.0
+          },
+          "5": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 216.0,
+            "hangingPt": 18.0
+          },
+          "6": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Symbol",
+            "leftIndentPt": 252.0,
+            "hangingPt": 18.0
+          },
+          "7": {
+            "numFmt": "bullet",
+            "lvlText": "o",
+            "font": "Courier New",
+            "leftIndentPt": 288.0,
+            "hangingPt": 18.0
+          },
+          "8": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 324.0,
+            "hangingPt": 18.0
+          }
+        }
+      },
+      "B11": {
+        "abstractNumId": 12,
+        "levels": {
+          "0": {
+            "numFmt": "none",
+            "lvlText": "%1",
+            "font": "Book Antiqua",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "1": {
+            "numFmt": "none",
+            "lvlText": "%2",
+            "font": "Book Antiqua",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "2": {
+            "numFmt": "none",
+            "lvlText": "",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "3": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 18.0,
+            "hangingPt": 9.35
+          },
+          "4": {
+            "numFmt": "bullet",
+            "lvlText": "–",
+            "font": "Cambria",
+            "leftIndentPt": 32.4,
+            "hangingPt": 9.35
+          },
+          "5": {
+            "numFmt": "bullet",
+            "lvlText": "",
+            "font": "Wingdings",
+            "leftIndentPt": 44.65,
+            "hangingPt": 8.65
+          },
+          "6": {
+            "numFmt": "none",
+            "lvlText": "%7",
+            "font": "Cambria",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "7": {
+            "numFmt": "none",
+            "lvlText": "%8",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          },
+          "8": {
+            "numFmt": "none",
+            "lvlText": "%9",
+            "font": "default",
+            "leftIndentPt": 0.0,
+            "hangingPt": null
+          }
+        }
+      }
+    }
+  },
+  "defaults": {
+    "bullet": "B1"
+  },
   "style_defs": {
     "paragraph": {
       "S1": {
