@@ -1,0 +1,630 @@
+{
+  "schema": "docxlang/v1",
+  "styles": {
+    "paragraph": {
+      "S1": "Project Title (CVHP)",
+      "S2": "Document Title (CVHP)",
+      "S3": "Header (CVHP)",
+      "S4": "Main Bullet (CVHP)",
+      "S5": "Sub-bullet 1 (CVHP)",
+      "S6": "Sub-bullet 2 (CVHP)"
+    },
+    "character": {},
+    "table": {}
+  },
+  "blocks": [
+    {
+      "type": "paragraph",
+      "runs": [],
+      "pStyle": "S1",
+      "override": {
+        "spaceBeforePt": 0.0,
+        "spaceAfterPt": 0.0,
+        "numbering": {
+          "numId": 0,
+          "level": 0,
+          "kind": "unknown"
+        }
+      }
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Portfolio Positioning Strategic Support"
+        }
+      ],
+      "pStyle": "S1",
+      "override": {
+        "spaceBeforePt": 0.0,
+        "spaceAfterPt": 0.0,
+        "numbering": {
+          "numId": 0,
+          "level": 0,
+          "kind": "unknown"
+        }
+      }
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Proposal"
+        }
+      ],
+      "pStyle": "S2",
+      "override": {
+        "numbering": {
+          "numId": 0,
+          "level": 0,
+          "kind": "unknown"
+        }
+      }
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "December 1, 2025"
+        }
+      ],
+      "pStyle": "S2",
+      "override": {
+        "numbering": {
+          "numId": 0,
+          "level": 0,
+          "kind": "unknown"
+        }
+      }
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Context and Objectives"
+        }
+      ],
+      "pStyle": "S3"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Helix is a leader in the biotech vaccine space, now with two commercialized vaccines (respiratory illness and viral infection) and a series of expected future launching including Flu, respiratory illness+Flu, and gastroenteric virus"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "To date, Helix messaging has largely focused around individual vaccines but with this emerging portfolio, Helix has a unique opportunity to position its portfolio globally "
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Success in redefining this portfolio and organizational positioning will ultimately support Helix’s commercial success globally"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "To that end, Helix is seeking support to:"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Develop and explore positioning territories and value propositions for the Helix portfolio at the global level"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Align on the most impactful portfolio positioning and translate these into a cohesive portfolio messaging platform with value drivers, proof points, and tailored messaging by stakeholder audience"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Key questions to be answered in the project include"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "TBD"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Proposed Project Approach"
+        }
+      ],
+      "pStyle": "S3"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Step 1: Rapidly Kickoff and Align on Project Objectives"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Conduct a kickoff meeting with the Helix team"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Align on objectives and project cadence including key stakeholders for input and required working sessions"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Draft approach/plan for working sessions and key workshops and identify preparation needs (e.g., pre-read materials) "
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Transfer relevant prior Helix work that can inform workshop pre-reads "
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Step 2a: Conduct Preparatory Working Sessions"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Conduct a series of small-group working sessions with key Helix functional teams to discuss positioning hypotheses tied to specific stakeholder needs "
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [],
+      "pStyle": "S6"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Goal of working-sessions is to understand ingoing perspectives on key stakeholder needs and the value proposition that the Helix portfolio could bring, and identify key topics for discussion during the broader workshop"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Step 2b: Develop Workshop Facilitation Materials"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Align on the overall goals and agenda for the workshop"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Leverage existing Helix work to assemble a pre-read and other preparatory materials to support the discussion"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Note, we assume that Helix has sufficient existing materials to support the workshop and that Meridian Strategy can conduct targeted additional analyses to support the workshop (e.g., develop a case study, compiling pricing in key markets, etc.)"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "If more extensive ne-new analysis and material generation is required an additional scope is required (see budget)"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Step 3: Facilitate Positioning and Messaging Workshop"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Share pre-read and preparatory materials ~1 week before the workshop"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Facilitate a day-long workshop (assume in person in Helix office) to "
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Define and prioritize positioning territories and key value propositions"
+        }
+      ],
+      "pStyle": "S6"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Draft foundational messaging materials / ideas that support the value propositions (for further testing)"
+        }
+      ],
+      "pStyle": "S6"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Step 4: Finalize outputs"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Synthesize the outputs of the workshop into a comprehensive strategic document articulating the aligned upon global portfolio positioning with supporting messages"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Define messages and hypotheses to test in further market research "
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Final output will include a focused set of slides that can be used to support leadership presentations"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Timeline:"
+        }
+      ],
+      "pStyle": "S3"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Project kickoff: December 8th "
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Target project completion: January 15th"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Team and Budget"
+        }
+      ],
+      "pStyle": "S3"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Project will be led by "
+        },
+        {
+          "type": "text",
+          "text": "Alex Chen, and Jordan Taylor ",
+          "override": {
+            "color": "EE0000"
+          }
+        },
+        {
+          "type": "text",
+          "text": "with additional support from a manager, consultant, and analyst"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Budget: $"
+        },
+        {
+          "type": "text",
+          "text": "XXX ",
+          "override": {
+            "color": "EE0000"
+          }
+        },
+        {
+          "type": "text",
+          "text": "K"
+        }
+      ],
+      "pStyle": "S4"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Professional fees: $"
+        },
+        {
+          "type": "text",
+          "text": "XXX ",
+          "override": {
+            "color": "EE0000"
+          }
+        },
+        {
+          "type": "text",
+          "text": "K"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Primary research expenses: $"
+        },
+        {
+          "type": "text",
+          "text": "XX ",
+          "override": {
+            "color": "EE0000"
+          }
+        },
+        {
+          "type": "text",
+          "text": "K"
+        }
+      ],
+      "pStyle": "S5"
+    },
+    {
+      "type": "paragraph",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Other expenses: $"
+        },
+        {
+          "type": "text",
+          "text": "XX ",
+          "override": {
+            "color": "EE0000"
+          }
+        },
+        {
+          "type": "text",
+          "text": "K"
+        }
+      ],
+      "pStyle": "S5"
+    }
+  ],
+  "style_defs": {
+    "paragraph": {
+      "S1": {
+        "name": "Project Title (CVHP)",
+        "font": {
+          "name": "Arial",
+          "sizePt": 14.0,
+          "bold": true,
+          "color": "1D4ED8"
+        },
+        "para": {
+          "align": "center",
+          "spaceBeforePt": 10.0,
+          "spaceAfterPt": 3.0
+        },
+        "type": "PARAGRAPH (1)"
+      },
+      "S2": {
+        "name": "Document Title (CVHP)",
+        "base": "Project Title (CVHP)",
+        "font": {
+          "sizePt": 12.0
+        },
+        "para": {
+          "spaceBeforePt": 3.0
+        },
+        "type": "PARAGRAPH (1)"
+      },
+      "S3": {
+        "name": "Header (CVHP)",
+        "font": {
+          "name": "Arial",
+          "bold": true,
+          "color": "1D4ED8"
+        },
+        "para": {
+          "spaceBeforePt": 12.0,
+          "spaceAfterPt": 6.0
+        },
+        "type": "PARAGRAPH (1)"
+      },
+      "S4": {
+        "name": "Main Bullet (CVHP)",
+        "para": {
+          "spaceBeforePt": 6.0,
+          "spaceAfterPt": 0.0
+        },
+        "type": "PARAGRAPH (1)"
+      },
+      "S5": {
+        "name": "Sub-bullet 1 (CVHP)",
+        "font": {
+          "name": "Cambria"
+        },
+        "para": {
+          "spaceAfterPt": 0.0
+        },
+        "type": "PARAGRAPH (1)"
+      },
+      "S6": {
+        "name": "Sub-bullet 2 (CVHP)",
+        "font": {
+          "name": "Cambria"
+        },
+        "para": {
+          "spaceAfterPt": 0.0
+        },
+        "type": "PARAGRAPH (1)"
+      }
+    },
+    "character": {},
+    "table": {}
+  }
+}

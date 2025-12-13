@@ -1,0 +1,355 @@
+{
+  "schema": "docxlang/v1",
+  "styles": {
+    "paragraph": {
+      "S1": "Project Title (CVHP)",
+      "S2": "Document Title (CVHP)",
+      "S3": "Header (CVHP)",
+      "S4": "Main Bullet (CVHP)",
+      "S5": "Sub-bullet 1 (CVHP)",
+      "S6": "Sub-bullet 2 (CVHP)"
+    },
+    "character": {},
+    "table": {}
+  },
+  "blocks": [
+    {
+      "type": "paragraph",
+      "pStyle": "S1",
+      "runs": [
+        {
+          "type": "text",
+          "text": "AI Integration Feasibility Study"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S2",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Technical Proposal"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S2",
+      "runs": [
+        {
+          "type": "text",
+          "text": "December 2025"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S3",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Executive Summary"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S4",
+      "runs": [
+        {
+          "type": "text",
+          "text": "This proposal outlines a comprehensive approach to integrating AI capabilities into existing business processes"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S4",
+      "runs": [
+        {
+          "type": "text",
+          "text": "The project aims to deliver measurable improvements in operational efficiency and decision-making accuracy"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S4",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Key deliverables include:"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Technical architecture documentation"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Proof-of-concept implementation"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "ROI analysis and recommendations"
+        }
+      ]
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S3",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Proposed Approach"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S4",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Phase 1: Discovery and Assessment"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Conduct stakeholder interviews to understand current workflows"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Analyze existing data infrastructure and integration points"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S6",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Document API endpoints and data formats"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S6",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Evaluate security and compliance requirements"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S4",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Phase 2: Design and Prototyping"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Develop technical architecture based on discovery findings"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Create working prototype demonstrating key capabilities"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S4",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Phase 3: Implementation and Rollout"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Deploy solution with phased rollout plan"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Provide training and documentation for end users"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S3",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Team and Investment"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S4",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Project will be led by "
+        },
+        {
+          "type": "text",
+          "text": "Dr. Sarah Mitchell, Technical Director",
+          "override": {
+            "color": "EE0000"
+          }
+        },
+        {
+          "type": "text",
+          "text": " with support from the AI Engineering team"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S4",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Total Investment: $"
+        },
+        {
+          "type": "text",
+          "text": "450",
+          "override": {
+            "color": "EE0000"
+          }
+        },
+        {
+          "type": "text",
+          "text": "K"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Professional services: $"
+        },
+        {
+          "type": "text",
+          "text": "380",
+          "override": {
+            "color": "EE0000"
+          }
+        },
+        {
+          "type": "text",
+          "text": "K"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Infrastructure costs: $"
+        },
+        {
+          "type": "text",
+          "text": "50",
+          "override": {
+            "color": "EE0000"
+          }
+        },
+        {
+          "type": "text",
+          "text": "K"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S5",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Contingency: $"
+        },
+        {
+          "type": "text",
+          "text": "20",
+          "override": {
+            "color": "EE0000"
+          }
+        },
+        {
+          "type": "text",
+          "text": "K"
+        }
+      ]
+    }
+  ]
+}

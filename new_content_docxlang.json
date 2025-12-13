@@ -1,0 +1,129 @@
+{
+  "schema": "docxlang/v1",
+  "styles": {
+    "paragraph": {
+      "S1": "Project Title (CVHP)",
+      "S2": "Document Title (CVHP)",
+      "S3": "Header (CVHP)",
+      "S4": "Main Bullet (CVHP)",
+      "S5": "Sub-bullet 1 (CVHP)",
+      "S6": "Sub-bullet 2 (CVHP)"
+    },
+    "character": {},
+    "table": {}
+  },
+  "blocks": [
+    {
+      "type": "paragraph",
+      "pStyle": "S1",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Sample Project Proposal"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S6",
+      "runs": [
+        {
+          "type": "text",
+          "text": "This is a sample document created using the docxlang codec. It uses the same styles as the template but with completely different content."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S6",
+      "runs": [
+        {
+          "type": "text",
+          "text": "This paragraph demonstrates "
+        },
+        {
+          "type": "text",
+          "text": "bold text",
+          "override": {
+            "bold": true
+          }
+        },
+        {
+          "type": "text",
+          "text": " and "
+        },
+        {
+          "type": "text",
+          "text": "italic text",
+          "override": {
+            "italic": true
+          }
+        },
+        {
+          "type": "text",
+          "text": " mixed with regular text."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S1",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Project Objectives"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S6",
+      "runs": [
+        {
+          "type": "text",
+          "text": "1. First objective - demonstrate round-trip conversion"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S6",
+      "runs": [
+        {
+          "type": "text",
+          "text": "2. Second objective - preserve template styling"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S6",
+      "runs": [
+        {
+          "type": "text",
+          "text": "3. Third objective - support LLM document generation"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S1",
+      "runs": [
+        {
+          "type": "text",
+          "text": "Conclusion"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "pStyle": "S6",
+      "runs": [
+        {
+          "type": "text",
+          "text": "The docxlang codec successfully demonstrates the ability to generate Word documents with consistent styling from a template."
+        }
+      ]
+    }
+  ]
+}
