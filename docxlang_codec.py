@@ -533,7 +533,13 @@ def docx_to_docxlang(
         if isinstance(item, Paragraph):
             # If it's a pure page-break paragraph, represent it as a block.
             if _paragraph_contains_page_break(item) and (item.text or "").strip() == "":
-                blocks.append({"type": "page_break"})
+                pb_block: Dict[str, Any] = {"type": "page_break"}
+                # Preserve paragraph style on page break blocks
+                if item.style is not None:
+                    pStyle = catalog.ensure("paragraph", item.style.name)
+                    if pStyle:
+                        pb_block["pStyle"] = pStyle
+                blocks.append(pb_block)
             else:
                 blocks.append(paragraph_to_block(item, catalog))
         elif isinstance(item, Table):
@@ -741,7 +747,15 @@ def docxlang_to_docx(
         for b in blocks:
             btype = b.get("type")
             if btype == "page_break":
-                doc.add_page_break()
+                p = doc.add_paragraph()
+                p.add_run().add_break(WD_BREAK.PAGE)
+                # Apply style if specified on page break
+                style_name = catalog.name("paragraph", b.get("pStyle"))
+                if style_name:
+                    try:
+                        p.style = style_name
+                    except KeyError:
+                        pass
             elif btype == "paragraph":
                 p = doc.add_paragraph()
                 _render_paragraph(p, b, catalog)
@@ -784,6 +798,13 @@ def docxlang_to_docx(
         if btype == "page_break":
             p = anchor.insert_paragraph_before()
             p.add_run().add_break(WD_BREAK.PAGE)
+            # Apply style if specified on page break
+            style_name = catalog.name("paragraph", b.get("pStyle"))
+            if style_name:
+                try:
+                    p.style = style_name
+                except KeyError:
+                    pass
         elif btype == "paragraph":
             p = anchor.insert_paragraph_before()
             _render_paragraph(p, b, catalog)

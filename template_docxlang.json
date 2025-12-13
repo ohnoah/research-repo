@@ -7,7 +7,8 @@
       "S3": "Header (CVHP)",
       "S4": "Main Bullet (CVHP)",
       "S5": "Sub-bullet 1 (CVHP)",
-      "S6": "Sub-bullet 2 (CVHP)"
+      "S6": "Sub-header (CVHP)",
+      "S7": "Sub-bullet 2 (CVHP)"
     },
     "character": {},
     "table": {}
@@ -171,7 +172,8 @@
       "pStyle": "S5"
     },
     {
-      "type": "page_break"
+      "type": "page_break",
+      "pStyle": "S6"
     },
     {
       "type": "paragraph",
@@ -256,7 +258,7 @@
     {
       "type": "paragraph",
       "runs": [],
-      "pStyle": "S6"
+      "pStyle": "S7"
     },
     {
       "type": "paragraph",
@@ -356,7 +358,7 @@
           "text": "Define and prioritize positioning territories and key value propositions"
         }
       ],
-      "pStyle": "S6"
+      "pStyle": "S7"
     },
     {
       "type": "paragraph",
@@ -366,7 +368,7 @@
           "text": "Draft foundational messaging materials / ideas that support the value propositions (for further testing)"
         }
       ],
-      "pStyle": "S6"
+      "pStyle": "S7"
     },
     {
       "type": "paragraph",
@@ -614,6 +616,18 @@
         "type": "PARAGRAPH (1)"
       },
       "S6": {
+        "name": "Sub-header (CVHP)",
+        "font": {
+          "name": "Arial",
+          "italic": true
+        },
+        "para": {
+          "spaceBeforePt": 6.0,
+          "spaceAfterPt": 6.0
+        },
+        "type": "PARAGRAPH (1)"
+      },
+      "S7": {
         "name": "Sub-bullet 2 (CVHP)",
         "font": {
           "name": "Cambria"
