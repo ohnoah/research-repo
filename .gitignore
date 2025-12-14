@@ -1,4 +1,7 @@
-examples
+# Keep PPTX templates + artifacts out of git (customer data).
+examples/**
+!examples/hybrid_pipeline_test_runs/
+!examples/hybrid_pipeline_test_runs/**/*.py
 Aspose.Slides.lic
 __pycache__/
 *.pyc

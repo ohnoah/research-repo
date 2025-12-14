@@ -53,8 +53,9 @@ from lxml import etree as ET
 # =============================================================================
 
 class ChartStrategy(str, Enum):
-    DSL = "dsl"
-    WORKBOOK = "workbook"
+    PPTX_DSL_SINGLE_SERIES = "pptx_dsl_single_series"
+    ASPOSE_STRUCTURAL = "aspose_structural"
+    ASPOSE_WORKBOOK_PATCH = "aspose_workbook_patch"
 
 
 class ChartLocator(BaseModel):
@@ -194,6 +195,14 @@ class ChartPromptPayload(BaseModel):
     strategy: ChartStrategy
     chart_type: str
 
+    # Template structure metadata (helps routing/validation)
+    template_total_series: int = Field(0, ge=0)
+    template_plot_count: int = Field(0, ge=0)
+    single_series_mode: bool = False
+
+    # Aspose structural context (present when strategy=aspose_structural)
+    style_slots: Optional[List[Dict[str, Any]]] = None
+
     # One of these is populated based on strategy
     dsl: Optional[DslPayload] = None
     workbook: Optional[WorkbookSnapshot] = None
@@ -201,10 +210,12 @@ class ChartPromptPayload(BaseModel):
     @root_validator
     def _validate_by_strategy(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         strat = values.get("strategy")
-        if strat == ChartStrategy.DSL and values.get("dsl") is None:
-            raise ValueError("strategy=dsl requires dsl payload")
-        if strat == ChartStrategy.WORKBOOK and values.get("workbook") is None:
-            raise ValueError("strategy=workbook requires workbook payload")
+        if strat == ChartStrategy.PPTX_DSL_SINGLE_SERIES and values.get("dsl") is None:
+            raise ValueError("strategy=pptx_dsl_single_series requires dsl payload")
+        if strat == ChartStrategy.ASPOSE_STRUCTURAL and not values.get("style_slots"):
+            raise ValueError("strategy=aspose_structural requires style_slots")
+        if strat == ChartStrategy.ASPOSE_WORKBOOK_PATCH and values.get("workbook") is None:
+            raise ValueError("strategy=aspose_workbook_patch requires workbook payload")
         return values
 
 
@@ -423,6 +434,25 @@ def get_chart_type_aspose(pptx_path: str, locator: ChartLocator) -> Tuple[str, L
         return (chart_type, src_kind)
 
 
+def get_total_series_aspose(pptx_path: str, locator: ChartLocator) -> int:
+    """
+    Return the total number of series in the chart using Aspose.
+    """
+    import aspose.slides as slides  # type: ignore
+
+    with slides.Presentation(str(pptx_path)) as pres:
+        slide = pres.slides[locator.slide_index]
+        for shape in slide.shapes:
+            try:
+                if int(shape.office_interop_shape_id) != locator.shape_id:  # type: ignore[attr-defined]
+                    continue
+                _ = shape.chart_data  # type: ignore[attr-defined]
+                return int(len(list(shape.chart_data.series)))  # type: ignore[attr-defined]
+            except Exception:
+                continue
+    return 0
+
+
 # =============================================================================
 # python-pptx chart access
 # =============================================================================
@@ -456,14 +486,17 @@ def _get_chart_python_pptx(pptx_path: str, locator: ChartLocator):
 
 def choose_strategy(pptx_path: str, locator: ChartLocator) -> ChartStrategy:
     """
-    Conservative decision: choose DSL only for chart types we can round-trip with python-pptx.
+    Strategy redesign (single-chart update):
 
-    DSL route supports:
-      - category charts
-      - XY scatter charts
-      - bubble charts
+    - Single-series mode (template has exactly 1 series total):
+        - Use python-pptx DSL when chart type is supported and single-plot.
+        - Otherwise use Aspose structural update.
 
-    Everything else => workbook route (Aspose).
+    - Multi-series / multi-plot mode (template has >1 series total OR multiple plots):
+        - Use Aspose structural update.
+
+    - If python-pptx can't open the chart at all (e.g. some cx:* charts),
+      fall back to Aspose workbook patch payloads.
     """
     from pptx.enum.chart import XL_CHART_TYPE  # type: ignore
 
@@ -506,26 +539,45 @@ def choose_strategy(pptx_path: str, locator: ChartLocator) -> ChartStrategy:
     if bubble_3d is not None:
         BUBBLE_TYPES.add(bubble_3d)
 
+    def _can_use_pptx_dsl(ct) -> bool:
+        return ct in CATEGORY_TYPES or ct in XY_TYPES or ct in BUBBLE_TYPES
+
+    aspose_total_series = 0
+    try:
+        aspose_total_series = get_total_series_aspose(pptx_path, locator)
+    except Exception:
+        aspose_total_series = 0
+
     chart, _shape, _prs = _get_chart_python_pptx(pptx_path, locator)
     if chart is None:
-        return ChartStrategy.WORKBOOK
+        # Some chart types (notably Office 2016+ cx:*) are not accessible in python-pptx.
+        # We still try to operate via Aspose.
+        return ChartStrategy.ASPOSE_STRUCTURAL if aspose_total_series > 0 else ChartStrategy.ASPOSE_WORKBOOK_PATCH
 
-    # Avoid multi-plot combo charts in DSL route (can be added later)
+    plot_count = 0
     try:
-        if len(chart.plots) != 1:
-            return ChartStrategy.WORKBOOK
+        plot_count = len(chart.plots)
     except Exception:
-        return ChartStrategy.WORKBOOK
+        plot_count = 0
+
+    total_series = 0
+    try:
+        total_series = sum(len(p.series) for p in chart.plots)
+    except Exception:
+        total_series = aspose_total_series
+
+    single_series_mode = total_series == 1
+    multi_plot = plot_count > 1
 
     try:
         ct = chart.chart_type
     except Exception:
-        return ChartStrategy.WORKBOOK
+        return ChartStrategy.ASPOSE_STRUCTURAL if total_series > 0 else ChartStrategy.ASPOSE_WORKBOOK_PATCH
 
-    if ct in CATEGORY_TYPES or ct in XY_TYPES or ct in BUBBLE_TYPES:
-        return ChartStrategy.DSL
+    if single_series_mode and (not multi_plot) and _can_use_pptx_dsl(ct):
+        return ChartStrategy.PPTX_DSL_SINGLE_SERIES
 
-    return ChartStrategy.WORKBOOK
+    return ChartStrategy.ASPOSE_STRUCTURAL if total_series > 0 else ChartStrategy.ASPOSE_WORKBOOK_PATCH
 
 
 # =============================================================================
@@ -1027,34 +1079,83 @@ def build_llm_prompt_payload(pptx_path: str, locator: ChartLocator) -> ChartProm
       - extract current chart data (DSL) OR workbook snapshot
       - always include chart_type for prompt context
     """
-    aspose_chart_type, _src_kind = get_chart_type_aspose(pptx_path, locator)
+    aspose_chart_type, src_kind = get_chart_type_aspose(pptx_path, locator)
 
+    template_total_series = 0
+    try:
+        template_total_series = get_total_series_aspose(pptx_path, locator)
+    except Exception:
+        template_total_series = 0
+
+    chart, _shape, _prs = _get_chart_python_pptx(pptx_path, locator)
+    template_plot_count = 0
+    if chart is not None:
+        try:
+            template_plot_count = len(chart.plots)
+        except Exception:
+            template_plot_count = 0
+        try:
+            template_total_series = sum(len(p.series) for p in chart.plots)
+        except Exception:
+            pass
+
+    single_series_mode = template_total_series == 1
     strategy = choose_strategy(pptx_path, locator)
-    if strategy == ChartStrategy.DSL:
-        chart, _shape, _prs = _get_chart_python_pptx(pptx_path, locator)
-        if chart is None:
-            wb = extract_workbook_snapshot(pptx_path, locator)
-            return ChartPromptPayload(locator=locator, strategy=ChartStrategy.WORKBOOK, chart_type=aspose_chart_type, workbook=wb)
 
+    # Attempt to produce a semantic DSL snapshot whenever python-pptx can read chart XML/caches.
+    dsl: Optional[DslPayload] = None
+    if chart is not None:
         ct_name = getattr(chart.chart_type, "name", str(chart.chart_type))
-
         try:
             if ct_name.startswith("XY_SCATTER"):
                 dsl = extract_xy_chart_dsl_from_chart_xml(pptx_path, locator)
-                return ChartPromptPayload(locator=locator, strategy=strategy, chart_type=ct_name, dsl=dsl)
-            if ct_name.startswith("BUBBLE"):
+            elif ct_name.startswith("BUBBLE"):
                 dsl = extract_bubble_chart_dsl_from_chart_xml(pptx_path, locator)
-                return ChartPromptPayload(locator=locator, strategy=strategy, chart_type=ct_name, dsl=dsl)
-
-            dsl = extract_category_chart_dsl_python_pptx(pptx_path, locator)
-            return ChartPromptPayload(locator=locator, strategy=strategy, chart_type=ct_name, dsl=dsl)
-
+            else:
+                dsl = extract_category_chart_dsl_python_pptx(pptx_path, locator)
         except Exception:
-            wb = extract_workbook_snapshot(pptx_path, locator)
-            return ChartPromptPayload(locator=locator, strategy=ChartStrategy.WORKBOOK, chart_type=aspose_chart_type, workbook=wb)
+            dsl = None
+
+    if strategy == ChartStrategy.PPTX_DSL_SINGLE_SERIES:
+        if dsl is None:
+            # If we can't build DSL even though strategy selected it, fall back.
+            strategy = ChartStrategy.ASPOSE_STRUCTURAL
+        else:
+            return ChartPromptPayload(
+                locator=locator,
+                strategy=strategy,
+                chart_type=aspose_chart_type,
+                template_total_series=template_total_series,
+                template_plot_count=template_plot_count,
+                single_series_mode=single_series_mode,
+                dsl=dsl,
+            )
+
+    if strategy == ChartStrategy.ASPOSE_STRUCTURAL:
+        from aspose_style_slots import extract_style_slots_aspose
+
+        style_slots = [s.dict() for s in extract_style_slots_aspose(pptx_path, locator.slide_index, locator.shape_id)]
+        return ChartPromptPayload(
+            locator=locator,
+            strategy=strategy,
+            chart_type=aspose_chart_type,
+            template_total_series=template_total_series,
+            template_plot_count=template_plot_count,
+            single_series_mode=single_series_mode,
+            style_slots=style_slots,
+            dsl=dsl,
+        )
 
     wb = extract_workbook_snapshot(pptx_path, locator)
-    return ChartPromptPayload(locator=locator, strategy=strategy, chart_type=aspose_chart_type, workbook=wb)
+    return ChartPromptPayload(
+        locator=locator,
+        strategy=ChartStrategy.ASPOSE_WORKBOOK_PATCH,
+        chart_type=aspose_chart_type,
+        template_total_series=template_total_series,
+        template_plot_count=template_plot_count,
+        single_series_mode=single_series_mode,
+        workbook=wb,
+    )
 
 
 # =============================================================================
@@ -1267,20 +1368,42 @@ def apply_chart_update(
 ) -> None:
     payload = json.loads(llm_update_json)
     kind = payload.get("kind")
+    update_kind = payload.get("update_kind") or kind
 
     if kind == "category_chart_update":
         update = CategoryChartUpdate.parse_obj(payload)
+        if prompt_payload.single_series_mode and len(update.series) != 1:
+            raise ValueError("Single-series mode: category_chart_update must contain exactly 1 series.")
         apply_category_chart_update_python_pptx(pptx_in, pptx_out, prompt_payload.locator, update)
         return
 
     if kind == "xy_chart_update":
         update = XyChartUpdate.parse_obj(payload)
+        if prompt_payload.single_series_mode and len(update.series) != 1:
+            raise ValueError("Single-series mode: xy_chart_update must contain exactly 1 series.")
         apply_xy_chart_update_python_pptx(pptx_in, pptx_out, prompt_payload.locator, update)
         return
 
     if kind == "bubble_chart_update":
         update = BubbleChartUpdate.parse_obj(payload)
+        if prompt_payload.single_series_mode and len(update.series) != 1:
+            raise ValueError("Single-series mode: bubble_chart_update must contain exactly 1 series.")
         apply_bubble_chart_update_python_pptx(pptx_in, pptx_out, prompt_payload.locator, update)
+        return
+
+    if update_kind in ("aspose_category", "aspose_scatter", "aspose_bubble"):
+        from aspose_structural_update import apply_aspose_chart_update
+        from chart_llm_models import parse_aspose_chart_update
+
+        update = parse_aspose_chart_update(payload)
+        apply_aspose_chart_update(
+            pptx_in,
+            pptx_out,
+            slide_index=prompt_payload.locator.slide_index,
+            office_shape_id=prompt_payload.locator.shape_id,
+            update=update,
+            single_series_mode=bool(prompt_payload.single_series_mode),
+        )
         return
 
     if kind == "workbook_cell_patch_update":
@@ -1295,7 +1418,7 @@ def apply_chart_update(
         apply_workbook_update_aspose(pptx_in, pptx_out, prompt_payload.locator, update, enforce_editable_cells=enforce)
         return
 
-    raise ValueError(f"Unknown update kind: {kind}")
+    raise ValueError(f"Unknown update kind: {update_kind}")
 
 
 # =============================================================================
