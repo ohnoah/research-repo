@@ -1,0 +1,78 @@
+#!/bin/bash
+# codex-tracker-clean - Clean up old tracking files
+#
+# Removes tracking files for sessions that are no longer running
+# and are older than the specified age.
+#
+# Usage: codex-tracker-clean [--all] [--older-than HOURS]
+
+set -euo pipefail
+
+TRACKING_DIR="${CODEX_TRACKING_DIR:-$HOME/.codex-tracker}"
+CLEAN_ALL=false
+OLDER_THAN_HOURS=24
+
+# Parse args
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --all|-a)
+            CLEAN_ALL=true
+            shift
+            ;;
+        --older-than|-o)
+            OLDER_THAN_HOURS="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: codex-tracker-clean [--all] [--older-than HOURS]"
+            exit 1
+            ;;
+    esac
+done
+
+if [[ ! -d "$TRACKING_DIR" ]]; then
+    echo "Tracking directory not found: $TRACKING_DIR"
+    exit 0
+fi
+
+cleaned=0
+kept=0
+
+for file in "$TRACKING_DIR"/*.json; do
+    [[ -f "$file" ]] || continue
+
+    data=$(cat "$file" 2>/dev/null || echo "{}")
+    status=$(echo "$data" | jq -r '.status // "unknown"')
+    pid=$(echo "$data" | jq -r '.pid // empty')
+    start_time=$(echo "$data" | jq -r '.start_time // ""')
+
+    # Check if process is still alive
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+        echo "Keeping active session: $(basename "$file")"
+        ((kept++)) || true
+        continue
+    fi
+
+    # Check age
+    if [[ "$CLEAN_ALL" == false ]] && [[ -n "$start_time" ]]; then
+        start_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$start_time" +%s 2>/dev/null || \
+                      date -d "$start_time" +%s 2>/dev/null || echo "0")
+        now_epoch=$(date +%s)
+        age_hours=$(( (now_epoch - start_epoch) / 3600 ))
+
+        if [[ $age_hours -lt $OLDER_THAN_HOURS ]]; then
+            echo "Keeping recent session (${age_hours}h old): $(basename "$file")"
+            ((kept++)) || true
+            continue
+        fi
+    fi
+
+    # Remove the file
+    rm -f "$file"
+    echo "Cleaned: $(basename "$file")"
+    ((cleaned++)) || true
+done
+
+echo ""
+echo "Cleaned $cleaned files, kept $kept files"

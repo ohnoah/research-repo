@@ -1,0 +1,343 @@
+#!/bin/bash
+# codex-dashboard - Simple terminal dashboard for Codex sessions
+#
+# Shows all tracked Codex sessions with their status, summary, and allows
+# jumping to specific terminal windows.
+#
+# Usage: codex-dashboard [--watch] [--json]
+
+set -euo pipefail
+
+TRACKING_DIR="${CODEX_TRACKING_DIR:-$HOME/.codex-tracker}"
+WATCH_MODE=false
+JSON_MODE=false
+
+# Parse args
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --watch|-w)
+            WATCH_MODE=true
+            shift
+            ;;
+        --json|-j)
+            JSON_MODE=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: codex-dashboard [--watch] [--json]"
+            exit 1
+            ;;
+    esac
+done
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+GRAY='\033[0;90m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+format_duration() {
+    local seconds=$1
+    if [[ $seconds -lt 60 ]]; then
+        echo "${seconds}s"
+    elif [[ $seconds -lt 3600 ]]; then
+        echo "$((seconds / 60))m $((seconds % 60))s"
+    else
+        echo "$((seconds / 3600))h $((seconds % 3600 / 60))m"
+    fi
+}
+
+time_ago() {
+    local timestamp="$1"
+    local now=$(date +%s)
+    local then=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$timestamp" +%s 2>/dev/null || \
+                 date -d "$timestamp" +%s 2>/dev/null || echo "$now")
+    local diff=$((now - then))
+    format_duration $diff
+}
+
+status_color() {
+    case "$1" in
+        running)  echo -e "${GREEN}●${NC}" ;;
+        waiting)  echo -e "${YELLOW}○${NC}" ;;
+        starting) echo -e "${BLUE}◐${NC}" ;;
+        stopped)  echo -e "${GRAY}○${NC}" ;;
+        *)        echo -e "${GRAY}?${NC}" ;;
+    esac
+}
+
+status_text() {
+    case "$1" in
+        running)  echo -e "${GREEN}Running${NC}" ;;
+        waiting)  echo -e "${YELLOW}Waiting${NC}" ;;
+        starting) echo -e "${BLUE}Starting${NC}" ;;
+        stopped)  echo -e "${GRAY}Stopped${NC}" ;;
+        *)        echo -e "${GRAY}Unknown${NC}" ;;
+    esac
+}
+
+# Check if a PID is still alive
+is_alive() {
+    local pid=$1
+    [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}
+
+# Focus terminal window (iTerm2)
+focus_iterm_session() {
+    local session_id="$1"
+    osascript << EOF
+tell application "iTerm2"
+    activate
+    repeat with aWindow in windows
+        repeat with aTab in tabs of aWindow
+            repeat with aSession in sessions of aTab
+                if unique id of aSession is "$session_id" then
+                    select aSession
+                    return true
+                end if
+            end repeat
+        end repeat
+    end repeat
+    return false
+end tell
+EOF
+}
+
+# Focus terminal window (Terminal.app)
+focus_terminal_tty() {
+    local tty_path="$1"
+    local tty_name=$(basename "$tty_path")
+    osascript << EOF
+tell application "Terminal"
+    activate
+    repeat with aWindow in windows
+        repeat with aTab in tabs of aWindow
+            if tty of aTab contains "$tty_name" then
+                set selected of aTab to true
+                set frontmost of aWindow to true
+                return true
+            end if
+        end repeat
+    end repeat
+    return false
+end tell
+EOF
+}
+
+# ============================================================================
+# DATA COLLECTION
+# ============================================================================
+
+get_sessions() {
+    local sessions=()
+
+    if [[ ! -d "$TRACKING_DIR" ]]; then
+        echo "[]"
+        return
+    fi
+
+    # Collect all tracking files
+    local json_output="["
+    local first=true
+
+    for file in "$TRACKING_DIR"/*.json; do
+        [[ -f "$file" ]] || continue
+
+        local data=$(cat "$file" 2>/dev/null || echo "{}")
+        local pid=$(echo "$data" | jq -r '.pid // empty')
+        local status=$(echo "$data" | jq -r '.status // "unknown"')
+
+        # Check if process is still alive and update status
+        if [[ "$status" != "stopped" ]] && [[ -n "$pid" ]]; then
+            if ! is_alive "$pid"; then
+                # Process died - update the file
+                local tmp_file=$(mktemp)
+                echo "$data" | jq '.status = "stopped"' > "$tmp_file" && mv "$tmp_file" "$file"
+                status="stopped"
+                data=$(echo "$data" | jq '.status = "stopped"')
+            fi
+        fi
+
+        if [[ "$first" == true ]]; then
+            first=false
+        else
+            json_output+=","
+        fi
+        json_output+="$data"
+    done
+
+    json_output+="]"
+    echo "$json_output"
+}
+
+# ============================================================================
+# DISPLAY
+# ============================================================================
+
+display_dashboard() {
+    clear
+
+    local sessions=$(get_sessions)
+    local count=$(echo "$sessions" | jq 'length')
+
+    if [[ "$JSON_MODE" == true ]]; then
+        echo "$sessions" | jq .
+        return
+    fi
+
+    echo -e "${BOLD}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BOLD}║              🤖 Codex Session Dashboard                        ║${NC}"
+    echo -e "${BOLD}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+
+    if [[ "$count" -eq 0 ]]; then
+        echo -e "${GRAY}  No tracked sessions found.${NC}"
+        echo -e "${GRAY}  Use 'codex-tracked' instead of 'codex' to enable tracking.${NC}"
+        echo ""
+        return
+    fi
+
+    # Sort by start time (newest first)
+    local sorted=$(echo "$sessions" | jq 'sort_by(.start_time) | reverse')
+
+    local running_count=$(echo "$sorted" | jq '[.[] | select(.status == "running" or .status == "waiting" or .status == "starting")] | length')
+    local stopped_count=$(echo "$sorted" | jq '[.[] | select(.status == "stopped")] | length')
+
+    echo -e "  ${GREEN}●${NC} ${running_count} active    ${GRAY}○${NC} ${stopped_count} stopped"
+    echo ""
+    echo -e "${GRAY}──────────────────────────────────────────────────────────────────${NC}"
+
+    # Display each session
+    local idx=1
+    echo "$sorted" | jq -c '.[]' | while read -r session; do
+        local tracking_id=$(echo "$session" | jq -r '.tracking_id')
+        local status=$(echo "$session" | jq -r '.status // "unknown"')
+        local summary=$(echo "$session" | jq -r '.summary // "No summary"')
+        local cwd=$(echo "$session" | jq -r '.cwd // "unknown"')
+        local start_time=$(echo "$session" | jq -r '.start_time // ""')
+        local last_activity=$(echo "$session" | jq -r '.last_activity // ""')
+        local terminal_app=$(echo "$session" | jq -r '.terminal.app // "unknown"')
+        local pid=$(echo "$session" | jq -r '.pid // ""')
+
+        # Shorten cwd
+        local short_cwd=$(echo "$cwd" | sed "s|$HOME|~|")
+        if [[ ${#short_cwd} -gt 40 ]]; then
+            short_cwd="...${short_cwd: -37}"
+        fi
+
+        # Calculate duration
+        local duration=""
+        if [[ -n "$start_time" ]]; then
+            local start_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$start_time" +%s 2>/dev/null || echo "0")
+            local now_epoch=$(date +%s)
+            local end_time=$(echo "$session" | jq -r '.end_time // ""')
+            if [[ -n "$end_time" ]] && [[ "$end_time" != "null" ]]; then
+                local end_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$end_time" +%s 2>/dev/null || echo "$now_epoch")
+                duration=$(format_duration $((end_epoch - start_epoch)))
+            else
+                duration=$(format_duration $((now_epoch - start_epoch)))
+            fi
+        fi
+
+        # Status indicator
+        local status_ind=$(status_color "$status")
+
+        echo ""
+        echo -e "  ${status_ind} ${BOLD}${summary:0:50}${NC}"
+        echo -e "    ${CYAN}${short_cwd}${NC}"
+        echo -e "    ${GRAY}${terminal_app} • ${duration} • PID ${pid}${NC}"
+
+        if [[ "$status" == "running" ]] || [[ "$status" == "waiting" ]]; then
+            local activity_ago=$(time_ago "$last_activity")
+            echo -e "    ${GRAY}Last activity: ${activity_ago} ago${NC}"
+        fi
+
+        ((idx++)) || true
+    done
+
+    echo ""
+    echo -e "${GRAY}──────────────────────────────────────────────────────────────────${NC}"
+    echo -e "  ${GRAY}Press Ctrl+C to exit${NC}"
+}
+
+# ============================================================================
+# INTERACTIVE MODE
+# ============================================================================
+
+interactive_menu() {
+    local sessions=$(get_sessions)
+    local sorted=$(echo "$sessions" | jq 'sort_by(.start_time) | reverse')
+
+    echo ""
+    echo -e "${BOLD}Select a session to focus:${NC}"
+    echo ""
+
+    local idx=1
+    local session_ids=()
+
+    echo "$sorted" | jq -c '.[]' | while read -r session; do
+        local status=$(echo "$session" | jq -r '.status // "unknown"')
+        local summary=$(echo "$session" | jq -r '.summary // "No summary"')
+        local tracking_id=$(echo "$session" | jq -r '.tracking_id')
+
+        local status_ind=$(status_color "$status")
+        echo -e "  ${idx}) ${status_ind} ${summary:0:40}"
+
+        session_ids+=("$tracking_id")
+        ((idx++)) || true
+    done
+
+    echo ""
+    echo -n "  Enter number (or q to quit): "
+    read -r choice
+
+    if [[ "$choice" == "q" ]] || [[ -z "$choice" ]]; then
+        return
+    fi
+
+    # Get the selected session
+    local selected=$(echo "$sorted" | jq -c ".[$((choice - 1))]" 2>/dev/null)
+    if [[ -z "$selected" ]] || [[ "$selected" == "null" ]]; then
+        echo "Invalid selection"
+        return
+    fi
+
+    local terminal_app=$(echo "$selected" | jq -r '.terminal.app // "unknown"')
+    local session_id=$(echo "$selected" | jq -r '.terminal.session_id // ""')
+    local tty=$(echo "$selected" | jq -r '.terminal.tty // ""')
+
+    case "$terminal_app" in
+        iTerm.app)
+            focus_iterm_session "$session_id"
+            ;;
+        Apple_Terminal)
+            focus_terminal_tty "$tty"
+            ;;
+        *)
+            echo "Cannot focus terminal type: $terminal_app"
+            ;;
+    esac
+}
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+if [[ "$WATCH_MODE" == true ]]; then
+    while true; do
+        display_dashboard
+        sleep 2
+    done
+else
+    display_dashboard
+    interactive_menu
+fi

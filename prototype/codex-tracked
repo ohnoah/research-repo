@@ -1,0 +1,255 @@
+#!/bin/bash
+# codex-tracked - Wrapper for codex that enables session tracking
+#
+# This wrapper:
+# 1. Captures terminal information
+# 2. Watches for the session file and first message
+# 3. Summarizes the request with an LLM
+# 4. Sets the terminal title
+# 5. Notifies on completion
+#
+# Usage: codex-tracked [codex args...]
+
+set -euo pipefail
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+TRACKING_DIR="${CODEX_TRACKING_DIR:-$HOME/.codex-tracker}"
+TRACKING_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
+START_TIME=$(date +%s)
+START_TIME_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+mkdir -p "$TRACKING_DIR"
+
+# ============================================================================
+# TERMINAL DETECTION
+# ============================================================================
+
+detect_terminal_info() {
+    local term_app="${TERM_PROGRAM:-unknown}"
+    local term_id=""
+    local window_id=""
+    local tty_path=$(tty 2>/dev/null || echo "unknown")
+
+    case "$term_app" in
+        iTerm.app)
+            term_id="${ITERM_SESSION_ID:-}"
+            # Get window and tab info for deeplinking
+            window_id=$(osascript -e 'tell application "iTerm2" to id of current window' 2>/dev/null || echo "")
+            ;;
+        Apple_Terminal)
+            term_id="${TERM_SESSION_ID:-$tty_path}"
+            window_id=$(osascript -e 'tell application "Terminal" to id of front window' 2>/dev/null || echo "")
+            ;;
+        vscode)
+            term_id="${VSCODE_INJECTION:-}${tty_path}"
+            ;;
+        WarpTerminal)
+            term_id="$tty_path"
+            ;;
+        *)
+            term_id="$tty_path"
+            ;;
+    esac
+
+    # Return as JSON
+    cat << EOF
+{
+    "app": "$term_app",
+    "session_id": "$term_id",
+    "window_id": "$window_id",
+    "tty": "$tty_path"
+}
+EOF
+}
+
+TERMINAL_JSON=$(detect_terminal_info)
+
+# ============================================================================
+# TRACKING FILE
+# ============================================================================
+
+TRACKING_FILE="$TRACKING_DIR/$TRACKING_ID.json"
+
+# Initial tracking record
+cat > "$TRACKING_FILE" << EOF
+{
+    "tracking_id": "$TRACKING_ID",
+    "pid": $$,
+    "cwd": "$(pwd)",
+    "start_time": "$START_TIME_ISO",
+    "status": "starting",
+    "terminal": $TERMINAL_JSON,
+    "session_file": null,
+    "session_id": null,
+    "summary": null,
+    "turns": 0,
+    "last_activity": "$START_TIME_ISO"
+}
+EOF
+
+# ============================================================================
+# TERMINAL TITLE
+# ============================================================================
+
+set_terminal_title() {
+    local title="$1"
+    # OSC 0: Window title (most terminals)
+    printf '\033]0;%s\007' "$title"
+    # OSC 1: Tab title (iTerm2)
+    printf '\033]1;%s\007' "$title"
+}
+
+# ============================================================================
+# SESSION WATCHING (runs in background)
+# ============================================================================
+
+watch_session() {
+    local session_dir="$HOME/.codex/sessions"
+    local max_wait=60
+    local waited=0
+    local session_file=""
+
+    # Wait for a new session file to appear
+    while [[ -z "$session_file" ]] && [[ $waited -lt $max_wait ]]; do
+        sleep 0.5
+        ((waited++)) || true
+
+        # Find session files created after our start time
+        while IFS= read -r -d '' file; do
+            local file_time=$(stat -f %B "$file" 2>/dev/null || stat -c %W "$file" 2>/dev/null || echo "0")
+            if [[ "$file_time" -ge "$START_TIME" ]]; then
+                session_file="$file"
+                break
+            fi
+        done < <(find "$session_dir" -name "*.jsonl" -type f -newer "$TRACKING_FILE" -print0 2>/dev/null | head -z -n 5)
+    done
+
+    if [[ -z "$session_file" ]]; then
+        return
+    fi
+
+    # Update tracking file with session path
+    local session_id=$(head -1 "$session_file" 2>/dev/null | jq -r '.payload.meta.id // .id // empty' 2>/dev/null || echo "")
+
+    # Use jq to update the tracking file atomically
+    local tmp_file=$(mktemp)
+    jq --arg sf "$session_file" --arg sid "$session_id" \
+        '.session_file = $sf | .session_id = $sid | .status = "running"' \
+        "$TRACKING_FILE" > "$tmp_file" && mv "$tmp_file" "$TRACKING_FILE"
+
+    # Watch for first user message
+    waited=0
+    local user_message=""
+    while [[ -z "$user_message" ]] && [[ $waited -lt 120 ]]; do
+        sleep 0.5
+        ((waited++)) || true
+
+        # Look for user message in the session file
+        user_message=$(grep -m1 '"type":\s*"user_message"' "$session_file" 2>/dev/null || \
+                       grep -m1 '"UserMessage"' "$session_file" 2>/dev/null || \
+                       echo "")
+    done
+
+    if [[ -n "$user_message" ]]; then
+        # Extract the message text
+        local message_text=$(echo "$user_message" | jq -r '
+            .payload.message //
+            .message //
+            .payload.content //
+            .content //
+            "New session"
+        ' 2>/dev/null || echo "New session")
+
+        # Truncate if too long for summarization
+        message_text="${message_text:0:500}"
+
+        # Summarize with LLM
+        local summary=""
+        if command -v claude &>/dev/null; then
+            summary=$(echo "Summarize this coding task in 5 words or less. No punctuation. Just the summary, nothing else: $message_text" | \
+                      timeout 30 claude --print 2>/dev/null | head -1 | cut -c1-50 || echo "")
+        elif command -v llm &>/dev/null; then
+            summary=$(echo "Summarize this coding task in 5 words or less. No punctuation. Just the summary, nothing else: $message_text" | \
+                      timeout 30 llm 2>/dev/null | head -1 | cut -c1-50 || echo "")
+        fi
+
+        # Fallback to truncated message
+        if [[ -z "$summary" ]]; then
+            summary="${message_text:0:40}"
+        fi
+
+        # Update terminal title
+        set_terminal_title "🤖 $summary"
+
+        # Update tracking file
+        tmp_file=$(mktemp)
+        jq --arg sum "$summary" '.summary = $sum' "$TRACKING_FILE" > "$tmp_file" && mv "$tmp_file" "$TRACKING_FILE"
+    fi
+
+    # Continue watching for activity updates
+    local last_size=$(wc -c < "$session_file" 2>/dev/null || echo "0")
+    while kill -0 $CODEX_PID 2>/dev/null; do
+        sleep 2
+        local new_size=$(wc -c < "$session_file" 2>/dev/null || echo "0")
+        if [[ "$new_size" -gt "$last_size" ]]; then
+            last_size=$new_size
+            tmp_file=$(mktemp)
+            jq --arg ts "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '.last_activity = $ts' \
+                "$TRACKING_FILE" > "$tmp_file" && mv "$tmp_file" "$TRACKING_FILE"
+        fi
+    done
+}
+
+# ============================================================================
+# CLEANUP
+# ============================================================================
+
+cleanup() {
+    local exit_code=$?
+
+    # Update tracking file with final status
+    if [[ -f "$TRACKING_FILE" ]]; then
+        local tmp_file=$(mktemp)
+        jq --arg ec "$exit_code" --arg et "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+            '.status = "stopped" | .exit_code = ($ec | tonumber) | .end_time = $et' \
+            "$TRACKING_FILE" > "$tmp_file" && mv "$tmp_file" "$TRACKING_FILE"
+    fi
+
+    # Send macOS notification
+    local summary=$(jq -r '.summary // "Codex session"' "$TRACKING_FILE" 2>/dev/null || echo "Codex session")
+    local cwd=$(jq -r '.cwd' "$TRACKING_FILE" 2>/dev/null || echo "")
+
+    osascript -e "display notification \"$summary\" with title \"Codex Session Ended\" subtitle \"$cwd\"" 2>/dev/null || true
+
+    # Kill the watcher if still running
+    if [[ -n "${WATCHER_PID:-}" ]] && kill -0 "$WATCHER_PID" 2>/dev/null; then
+        kill "$WATCHER_PID" 2>/dev/null || true
+    fi
+
+    exit $exit_code
+}
+
+trap cleanup EXIT INT TERM
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+set_terminal_title "🤖 Codex starting..."
+
+# Start codex in background so we can get its PID
+codex "$@" &
+CODEX_PID=$!
+
+# Export for the watcher
+export CODEX_PID
+
+# Start session watcher in background
+watch_session &
+WATCHER_PID=$!
+
+# Wait for codex to finish
+wait $CODEX_PID
