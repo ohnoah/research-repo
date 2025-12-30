@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with pgvector extension
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: postgres_db
+    environment:
+      POSTGRES_DB: myapp_db
+      POSTGRES_USER: myapp_user
+      POSTGRES_PASSWORD: myapp_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myapp_user -d myapp_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+  # PgBouncer for connection pooling
+  pgbouncer:
+    image: edoburu/pgbouncer:1.22.1
+    container_name: pgbouncer
+    environment:
+      DATABASE_URL: postgres://myapp_user:myapp_password@postgres:5432/myapp_db
+      POOL_MODE: transaction
+      DEFAULT_POOL_SIZE: 20
+      MAX_CLIENT_CONN: 100
+      MAX_DB_CONNECTIONS: 50
+      QUERY_WAIT_TIMEOUT: 120
+      SERVER_IDLE_TIMEOUT: 600
+      # Enable prepared statement tracking (important for psycopg)
+      MAX_PREPARED_STATEMENTS: 100
+      AUTH_TYPE: scram-sha-256
+    ports:
+      - "6432:5432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  # Django application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: django_app
+    environment:
+      # Database settings
+      DB_NAME: myapp_db
+      DB_USER: myapp_user
+      DB_PASSWORD: myapp_password
+      DB_HOST: postgres
+      DB_HOST_POOLED: pgbouncer
+      DB_PORT: 5432
+      DB_PORT_POOLED: 5432  # PgBouncer internal port
+
+      # Django settings
+      DJANGO_SETTINGS_MODULE: myapp.settings
+      DEBUG: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+    networks:
+      - app_network
+    command: >
+      sh -c "python manage.py migrate --database=direct &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # Test runner service
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: test_runner
+    environment:
+      DB_NAME: myapp_db
+      DB_USER: myapp_user
+      DB_PASSWORD: myapp_password
+      DB_HOST: postgres
+      DB_HOST_POOLED: pgbouncer
+      DB_PORT: 5432
+      DB_PORT_POOLED: 5432
+      DJANGO_SETTINGS_MODULE: myapp.settings
+      DEBUG: "true"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+    networks:
+      - app_network
+    profiles:
+      - test
+    command: python -m pytest tests/ -v
+
+volumes:
+  postgres_data:
+
+networks:
+  app_network:
+    driver: bridge
