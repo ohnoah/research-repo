@@ -1,0 +1,495 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Field Types Demo API",
+    "version": "1.0.0",
+    "description": "Demonstrating how different Pydantic field configs appear in OpenAPI"
+  },
+  "paths": {
+    "/api/basic": {
+      "post": {
+        "operationId": "api_api_create_basic",
+        "summary": "Create Basic",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BasicSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Endpoint using BasicSchema for both request and response.",
+        "tags": [
+          "demo"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BasicSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/default-values": {
+      "post": {
+        "operationId": "api_api_create_with_defaults",
+        "summary": "Create With Defaults",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultValuesSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Endpoint with default values - watch how these appear in OpenAPI.",
+        "tags": [
+          "demo"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefaultValuesSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/field-config": {
+      "post": {
+        "operationId": "api_api_create_field_config",
+        "summary": "Create Field Config",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldConfigSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Endpoint using Field() configurations.",
+        "tags": [
+          "demo"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldConfigSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/users": {
+      "post": {
+        "operationId": "api_api_create_user",
+        "summary": "Create User",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create user - different schemas for request vs response.",
+        "tags": [
+          "demo"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/person-address": {
+      "post": {
+        "operationId": "api_api_create_person",
+        "summary": "Create Person",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonWithAddress"
+                }
+              }
+            }
+          }
+        },
+        "description": "Nested schema example.",
+        "tags": [
+          "demo"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonWithAddress"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/problematic": {
+      "post": {
+        "operationId": "api_api_create_problematic",
+        "summary": "Create Problematic",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblematicSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "The problematic schema that generates messy types.",
+        "tags": [
+          "demo"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProblematicSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BasicSchema": {
+        "description": "Basic required and optional fields.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nickname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nickname"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "BasicSchema",
+        "type": "object"
+      },
+      "DefaultValuesSchema": {
+        "description": "Fields with default values - often incorrectly marked as optional in OpenAPI.",
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Priority"
+              }
+            ],
+            "default": "medium"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "DefaultValuesSchema",
+        "type": "object"
+      },
+      "Priority": {
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "title": "Priority",
+        "type": "string"
+      },
+      "FieldConfigSchema": {
+        "description": "Using Field() for more control.",
+        "properties": {
+          "email": {
+            "description": "User's email address",
+            "title": "Email",
+            "type": "string"
+          },
+          "max_retries": {
+            "default": 3,
+            "maximum": 10,
+            "minimum": 0,
+            "title": "Max Retries",
+            "type": "integer"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "FieldConfigSchema",
+        "type": "object"
+      },
+      "UserResponse": {
+        "description": "Response schema - fields always present in response.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "is_verified": {
+            "title": "Is Verified",
+            "type": "boolean"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "role",
+          "is_verified",
+          "created_at"
+        ],
+        "title": "UserResponse",
+        "type": "object"
+      },
+      "CreateUserRequest": {
+        "description": "Request schema - fields user must/can provide.",
+        "properties": {
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "default": "user",
+            "title": "Role",
+            "type": "string"
+          },
+          "is_verified": {
+            "default": false,
+            "title": "Is Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "username",
+          "email"
+        ],
+        "title": "CreateUserRequest",
+        "type": "object"
+      },
+      "Address": {
+        "properties": {
+          "street": {
+            "title": "Street",
+            "type": "string"
+          },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "default": "USA",
+            "title": "Country",
+            "type": "string"
+          }
+        },
+        "required": [
+          "street",
+          "city"
+        ],
+        "title": "Address",
+        "type": "object"
+      },
+      "PersonWithAddress": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "primary_address": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "secondary_address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "primary_address"
+        ],
+        "title": "PersonWithAddress",
+        "type": "object"
+      },
+      "ProblematicSchema": {
+        "description": "This often generates messy TypeScript types.",
+        "properties": {
+          "optional_with_default": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optional With Default"
+          },
+          "optional_without_default": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optional Without Default"
+          },
+          "has_default": {
+            "default": "default_value",
+            "title": "Has Default",
+            "type": "string"
+          }
+        },
+        "title": "ProblematicSchema",
+        "type": "object"
+      }
+    }
+  },
+  "servers": []
+}
