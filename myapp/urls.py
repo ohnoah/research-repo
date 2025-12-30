@@ -7,7 +7,6 @@ from django.urls import path
 from ninja import NinjaAPI
 
 from sample.api import router as sample_router
-from sample.api_sqlalchemy import router as sqlalchemy_router
 
 # Create the Ninja API
 api = NinjaAPI(
@@ -27,7 +26,13 @@ api = NinjaAPI(
 
 # Register routers
 api.add_router("/items/", sample_router, tags=["Items"])
-api.add_router("/vectors/", sqlalchemy_router, tags=["Vectors & SQLAlchemy"])
+
+# Optionally add SQLAlchemy/pgvector router if available
+try:
+    from sample.api_sqlalchemy import router as sqlalchemy_router
+    api.add_router("/vectors/", sqlalchemy_router, tags=["Vectors & SQLAlchemy"])
+except ImportError as e:
+    print(f"SQLAlchemy/pgvector router not available: {e}")
 
 urlpatterns = [
     path('admin/', admin.site.urls),

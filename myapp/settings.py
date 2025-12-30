@@ -81,7 +81,8 @@ DB_PASSWORD = os.environ.get('DB_PASSWORD', 'myapp_password')
 DB_HOST_DIRECT = os.environ.get('DB_HOST', 'localhost')
 DB_HOST_POOLED = os.environ.get('DB_HOST_POOLED', 'localhost')
 DB_PORT_DIRECT = os.environ.get('DB_PORT', '5432')
-DB_PORT_POOLED = os.environ.get('DB_PORT_POOLED', '6432')
+# For local testing without PgBouncer, defaults to direct port
+DB_PORT_POOLED = os.environ.get('DB_PORT_POOLED', '5432')
 
 DATABASES = {
     # Pooled connection via PgBouncer - for web traffic

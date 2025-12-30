@@ -33,6 +33,8 @@ class Item(models.Model):
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.IntegerField(default=0)
+    # New field to test migrations
+    is_active = models.BooleanField(default=True, help_text="Whether item is active")
     tags = ArrayField(
         models.CharField(max_length=50),
         blank=True,
