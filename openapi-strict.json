@@ -1,0 +1,1524 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Type Testing API",
+    "version": "1.0.0",
+    "description": "API for testing OpenAPI -> TypeScript type generation"
+  },
+  "paths": {
+    "/api/required-fields": {
+      "post": {
+        "operationId": "testapi_api_create_required_fields",
+        "summary": "Create Required Fields",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequiredFieldsSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with all required fields.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequiredFieldsSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/optional-fields": {
+      "post": {
+        "operationId": "testapi_api_create_optional_fields",
+        "summary": "Create Optional Fields",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionalFieldsSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with Optional[T] fields (no defaults).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptionalFieldsSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/default-value-fields": {
+      "post": {
+        "operationId": "testapi_api_create_default_value_fields",
+        "summary": "Create Default Value Fields",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultValueFieldsSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with fields that have default values.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefaultValueFieldsSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/optional-none-default": {
+      "post": {
+        "operationId": "testapi_api_create_optional_none_default",
+        "summary": "Create Optional None Default",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionalWithNoneDefaultSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with Optional[T] = None pattern.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptionalWithNoneDefaultSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/optional-value-default": {
+      "post": {
+        "operationId": "testapi_api_create_optional_value_default",
+        "summary": "Create Optional Value Default",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionalWithValueDefaultSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with Optional[T] = 'value' pattern.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptionalWithValueDefaultSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/mixed-patterns": {
+      "post": {
+        "operationId": "testapi_api_create_mixed_patterns",
+        "summary": "Create Mixed Patterns",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MixedPatternsSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with mixed field patterns.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MixedPatternsSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/field-descriptors": {
+      "post": {
+        "operationId": "testapi_api_create_field_descriptors",
+        "summary": "Create Field Descriptors",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldDescriptorSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with Field() descriptors.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldDescriptorSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/union-types": {
+      "post": {
+        "operationId": "testapi_api_create_union_types",
+        "summary": "Create Union Types",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnionTypesSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with Union types.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnionTypesSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/nested": {
+      "post": {
+        "operationId": "testapi_api_create_nested",
+        "summary": "Create Nested",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NestedSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with nested schemas.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NestedSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/users": {
+      "post": {
+        "operationId": "testapi_api_create_user",
+        "summary": "Create User",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create a new user.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/users/{user_id}": {
+      "get": {
+        "operationId": "testapi_api_get_user",
+        "summary": "Get User",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "Get a user by ID."
+      }
+    },
+    "/api/items": {
+      "post": {
+        "operationId": "testapi_api_create_item",
+        "summary": "Create Item",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create a new item.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemCreateRequest"
+              }
+            }
+          },
+          "required": true
+        }
+      },
+      "get": {
+        "operationId": "testapi_api_list_items",
+        "summary": "List Items",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ItemResponse"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "List all items."
+      }
+    },
+    "/api/items/{item_id}": {
+      "patch": {
+        "operationId": "testapi_api_update_item",
+        "summary": "Update Item",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "schema": {
+              "title": "Item Id",
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "Update an existing item (partial update).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/literal-types": {
+      "post": {
+        "operationId": "testapi_api_create_literal_types",
+        "summary": "Create Literal Types",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiteralTypesSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with Literal types.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiteralTypesSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/default-factory": {
+      "post": {
+        "operationId": "testapi_api_create_default_factory",
+        "summary": "Create Default Factory",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultFactorySchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with default_factory patterns.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefaultFactorySchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/paginated-items": {
+      "get": {
+        "operationId": "testapi_api_list_paginated_items",
+        "summary": "List Paginated Items",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "default": 20,
+              "title": "Page Size",
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "sort_by",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort By"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "sort_order",
+            "schema": {
+              "default": "asc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Sort Order",
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Status"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "min_date",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "max_date",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Date"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "include_inactive",
+            "schema": {
+              "default": false,
+              "title": "Include Inactive",
+              "type": "boolean"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ItemResponse"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint with query parameters using schemas."
+      }
+    },
+    "/api/strict-optional": {
+      "post": {
+        "operationId": "testapi_api_create_strict_optional",
+        "summary": "Create Strict Optional",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrictOptionalSchema"
+                }
+              }
+            }
+          }
+        },
+        "description": "Test endpoint demonstrating strict optionality.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrictOptionalSchema"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/path-test/{required_id}": {
+      "get": {
+        "operationId": "testapi_api_path_test",
+        "summary": "Path Test",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "required_id",
+            "schema": {
+              "title": "Required Id",
+              "type": "integer"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "optional_param",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Optional Param"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "default_param",
+            "schema": {
+              "default": 10,
+              "title": "Default Param",
+              "type": "integer"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "Test path and query parameter handling."
+      }
+    },
+    "/api/query-test": {
+      "get": {
+        "operationId": "testapi_api_query_test",
+        "summary": "Query Test",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "required",
+            "schema": {
+              "title": "Required",
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "nullable",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nullable"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "with_default",
+            "schema": {
+              "default": 5,
+              "title": "With Default",
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "optional_nullable",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Optional Nullable"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "Test query parameter patterns."
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RequiredFieldsSchema": {
+        "description": "All fields are required with no defaults.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "age": {
+            "title": "Age",
+            "type": "integer"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "age",
+          "email",
+          "is_active"
+        ],
+        "title": "RequiredFieldsSchema",
+        "type": "object"
+      },
+      "OptionalFieldsSchema": {
+        "description": "Fields that can be None but are still required in input.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string",
+            "title": "Nickname"
+          },
+          "middle_name": {
+            "type": "string",
+            "title": "Middle Name"
+          }
+        },
+        "required": [
+          "name",
+          "nickname",
+          "middle_name"
+        ],
+        "title": "OptionalFieldsSchema",
+        "type": "object"
+      },
+      "DefaultValueFieldsSchema": {
+        "description": "Fields with default values - should be optional in requests.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "is_enabled": {
+            "default": true,
+            "title": "Is Enabled",
+            "type": "boolean"
+          },
+          "description": {
+            "default": "No description",
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "DefaultValueFieldsSchema",
+        "type": "object"
+      },
+      "OptionalWithNoneDefaultSchema": {
+        "description": "Optional fields with None as default - most permissive.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string",
+            "title": "Nickname"
+          },
+          "bio": {
+            "type": "string",
+            "title": "Bio"
+          },
+          "avatar_url": {
+            "type": "string",
+            "title": "Avatar Url"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "OptionalWithNoneDefaultSchema",
+        "type": "object"
+      },
+      "OptionalWithValueDefaultSchema": {
+        "description": "Optional fields but with non-None defaults.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string",
+            "title": "Nickname",
+            "default": "Anonymous"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "pending"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "OptionalWithValueDefaultSchema",
+        "type": "object"
+      },
+      "MixedPatternsSchema": {
+        "description": "A realistic mix of patterns.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "integer",
+            "title": "Parent Id"
+          },
+          "external_ref": {
+            "type": "integer",
+            "title": "External Ref"
+          },
+          "page": {
+            "default": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "sort_order": {
+            "default": "asc",
+            "title": "Sort Order",
+            "type": "string"
+          },
+          "filter_name": {
+            "type": "string",
+            "title": "Filter Name"
+          },
+          "search_query": {
+            "type": "string",
+            "title": "Search Query"
+          },
+          "default_status": {
+            "type": "string",
+            "title": "Default Status",
+            "default": "active"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "parent_id",
+          "external_ref"
+        ],
+        "title": "MixedPatternsSchema",
+        "type": "object"
+      },
+      "FieldDescriptorSchema": {
+        "description": "Testing Field() descriptor patterns.",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "email": {
+            "description": "User's email address",
+            "title": "Email",
+            "type": "string"
+          },
+          "age": {
+            "maximum": 150,
+            "minimum": 0,
+            "type": "integer",
+            "title": "Age"
+          },
+          "country": {
+            "default": "US",
+            "description": "ISO country code",
+            "title": "Country",
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "User role",
+            "default": "user"
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ],
+        "title": "FieldDescriptorSchema",
+        "type": "object"
+      },
+      "UnionTypesSchema": {
+        "description": "Testing Union type handling.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Id"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          },
+          "tag": {
+            "type": "string",
+            "title": "Tag"
+          }
+        },
+        "required": [
+          "id",
+          "metadata",
+          "value"
+        ],
+        "title": "UnionTypesSchema",
+        "type": "object"
+      },
+      "AddressSchema": {
+        "properties": {
+          "street": {
+            "title": "Street",
+            "type": "string"
+          },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "default": "US",
+            "title": "Country",
+            "type": "string"
+          },
+          "postal_code": {
+            "type": "string",
+            "title": "Postal Code"
+          }
+        },
+        "required": [
+          "street",
+          "city"
+        ],
+        "title": "AddressSchema",
+        "type": "object"
+      },
+      "NestedSchema": {
+        "description": "Testing nested schema handling.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "primary_address": {
+            "$ref": "#/components/schemas/AddressSchema"
+          },
+          "billing_address": {
+            "$ref": "#/components/schemas/AddressSchema"
+          },
+          "other_addresses": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AddressSchema"
+            },
+            "title": "Other Addresses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "primary_address"
+        ],
+        "title": "NestedSchema",
+        "type": "object"
+      },
+      "Status": {
+        "enum": [
+          "active",
+          "inactive",
+          "pending"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "UserResponse": {
+        "description": "User response with computed/readonly fields.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "bio": {
+            "type": "string",
+            "title": "Bio"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "display_name",
+          "bio",
+          "status",
+          "created_at"
+        ],
+        "title": "UserResponse",
+        "type": "object"
+      },
+      "CreateUserRequest": {
+        "description": "Realistic user creation request.",
+        "properties": {
+          "username": {
+            "maxLength": 50,
+            "minLength": 3,
+            "title": "Username",
+            "type": "string"
+          },
+          "email": {
+            "description": "Valid email address",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          },
+          "age": {
+            "default": 18,
+            "maximum": 150,
+            "minimum": 0,
+            "title": "Age",
+            "type": "integer"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "bio": {
+            "type": "string",
+            "title": "Bio"
+          },
+          "website": {
+            "type": "string",
+            "title": "Website",
+            "description": "Personal website URL"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Status"
+              }
+            ],
+            "default": "pending"
+          },
+          "preferred_status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "address": {
+            "$ref": "#/components/schemas/AddressSchema"
+          }
+        },
+        "required": [
+          "username",
+          "email",
+          "password"
+        ],
+        "title": "CreateUserRequest",
+        "type": "object"
+      },
+      "ItemResponse": {
+        "description": "Response - all fields populated.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "price": {
+            "title": "Price",
+            "type": "number"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "is_available": {
+            "title": "Is Available",
+            "type": "boolean"
+          },
+          "category_id": {
+            "type": "integer",
+            "title": "Category Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "price",
+          "quantity",
+          "is_available",
+          "category_id",
+          "created_at"
+        ],
+        "title": "ItemResponse",
+        "type": "object"
+      },
+      "ItemCreateRequest": {
+        "description": "Create request - some fields optional with defaults.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "price": {
+            "title": "Price",
+            "type": "number"
+          },
+          "quantity": {
+            "default": 1,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "is_available": {
+            "default": true,
+            "title": "Is Available",
+            "type": "boolean"
+          },
+          "category_id": {
+            "type": "integer",
+            "title": "Category Id"
+          }
+        },
+        "required": [
+          "name",
+          "price"
+        ],
+        "title": "ItemCreateRequest",
+        "type": "object"
+      },
+      "ItemUpdateRequest": {
+        "description": "Update request - all fields optional for partial updates.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "is_available": {
+            "type": "boolean",
+            "title": "Is Available"
+          },
+          "category_id": {
+            "type": "integer",
+            "title": "Category Id"
+          }
+        },
+        "title": "ItemUpdateRequest",
+        "type": "object"
+      },
+      "LiteralTypesSchema": {
+        "description": "Testing literal type handling.",
+        "properties": {
+          "sort_direction": {
+            "default": "asc",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "title": "Sort Direction",
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Priority",
+            "type": "integer"
+          },
+          "optional_priority": {
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "type": "integer",
+            "title": "Optional Priority"
+          }
+        },
+        "required": [
+          "priority"
+        ],
+        "title": "LiteralTypesSchema",
+        "type": "object"
+      },
+      "DefaultFactorySchema": {
+        "description": "Fields with default_factory equivalents.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tags": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Metadata",
+            "type": "object"
+          },
+          "scores": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Scores",
+            "type": "array"
+          },
+          "config": {
+            "additionalProperties": true,
+            "title": "Config",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "DefaultFactorySchema",
+        "type": "object"
+      },
+      "FilterParams": {
+        "description": "Filter parameters with various optional patterns.",
+        "properties": {
+          "search": {
+            "type": "string",
+            "title": "Search"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "min_date": {
+            "format": "date",
+            "type": "string",
+            "title": "Min Date"
+          },
+          "max_date": {
+            "format": "date",
+            "type": "string",
+            "title": "Max Date"
+          },
+          "include_inactive": {
+            "default": false,
+            "title": "Include Inactive",
+            "type": "boolean"
+          }
+        },
+        "title": "FilterParams",
+        "type": "object"
+      },
+      "PaginationParams": {
+        "description": "Typical pagination query params.",
+        "properties": {
+          "page": {
+            "default": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "default": 20,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "sort_by": {
+            "type": "string",
+            "title": "Sort By"
+          },
+          "sort_order": {
+            "default": "asc",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "title": "Sort Order",
+            "type": "string"
+          }
+        },
+        "title": "PaginationParams",
+        "type": "object"
+      },
+      "StrictOptionalSchema": {
+        "description": "Testing what should be 'required but can be null' vs 'optional and can be null'.\n\nIn Pydantic:\n- Optional[T] without default = required in input, can be None\n- Optional[T] = None = not required, can be None",
+        "properties": {
+          "nullable_required": {
+            "type": "string",
+            "title": "Nullable Required"
+          },
+          "nullable_optional": {
+            "type": "string",
+            "title": "Nullable Optional"
+          },
+          "required": {
+            "title": "Required",
+            "type": "string"
+          },
+          "optional_with_default": {
+            "default": "default",
+            "title": "Optional With Default",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nullable_required",
+          "required"
+        ],
+        "title": "StrictOptionalSchema",
+        "type": "object"
+      }
+    }
+  },
+  "servers": []
+}

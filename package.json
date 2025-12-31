@@ -1,0 +1,19 @@
+{
+  "name": "django-ninja-heyapi-test",
+  "version": "1.0.0",
+  "description": "Testing Django Ninja OpenAPI -> Hey API TypeScript generation",
+  "type": "module",
+  "scripts": {
+    "generate-openapi": "python generate_openapi.py",
+    "generate-client": "npx @hey-api/openapi-ts -i openapi.json -o src/client -c @hey-api/client-fetch",
+    "generate-client-strict": "python scripts/process_openapi.py && npx @hey-api/openapi-ts -i openapi-strict.json -o src/client-strict -c @hey-api/client-fetch",
+    "generate-all": "npm run generate-openapi && npm run generate-client && npm run generate-client-strict",
+    "typecheck": "npx tsc --noEmit",
+    "test": "npm run typecheck"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "^0.61.0",
+    "@hey-api/client-fetch": "^0.6.0",
+    "typescript": "^5.3.0"
+  }
+}
