@@ -1,0 +1,4 @@
+node_modules/
+dist/
+.helicone-export-state.json
+*.log
