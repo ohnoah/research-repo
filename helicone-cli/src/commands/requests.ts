@@ -160,23 +160,34 @@ export function createRequestsCommand(): Command {
   // ============================================================================
   requests
     .command("get <requestId>")
-    .description("Get a single request by ID")
+    .description("Get a single request by ID with flexible viewing options")
+    .option(
+      "-s, --show <section>",
+      "What to show: summary, messages, request, response, metadata, properties, scores, all",
+      "summary"
+    )
+    .option(
+      "-e, --extract <path>",
+      "Extract a specific field (e.g., 'response_body.choices[0].message.content')"
+    )
+    .option("--raw", "Output raw JSON (equivalent to --show all --format json)")
     .option(
       "-f, --format <format>",
-      "Output format: table, json, jsonl",
+      "Output format for --show all: json, jsonl",
       "json"
     )
-    .option("--include-body", "Include full request/response bodies")
     .option("--api-key <key>", "Helicone API key")
     .option("--region <region>", "API region (us or eu)")
-    .action(async (requestId: string, options: GetOptions) => {
+    .action(async (requestId: string, options: GetOptions & { show?: string; extract?: string; raw?: boolean }) => {
       try {
         const auth = getAuthContext(options.apiKey, options.region);
         const client = new HeliconeClient(auth);
 
         const spinner = ora("Fetching request...").start();
 
-        const result = await client.getRequest(requestId, options.includeBody);
+        // Always fetch with body for most views
+        const needsBody = options.show !== "metadata" && options.show !== "properties" && options.show !== "scores";
+        const result = await client.getRequest(requestId, needsBody);
 
         if (result.error) {
           spinner.fail(chalk.red(`Error: ${result.error}`));
@@ -190,9 +201,73 @@ export function createRequestsCommand(): Command {
           return;
         }
 
-        const format = (options.format || "json") as OutputFormat;
-        const output = formatRequests([result.data], format);
-        console.log(output);
+        const req = result.data;
+
+        // Handle --extract for jq-like field extraction
+        if (options.extract) {
+          const value = extractPath(req, options.extract);
+          if (value === undefined) {
+            console.log(chalk.yellow(`Path '${options.extract}' not found`));
+          } else if (typeof value === "string") {
+            console.log(value);
+          } else {
+            console.log(JSON.stringify(value, null, 2));
+          }
+          return;
+        }
+
+        // Handle --raw flag
+        if (options.raw) {
+          console.log(JSON.stringify(req, null, 2));
+          return;
+        }
+
+        // Handle different --show options
+        const section = options.show || "summary";
+
+        switch (section) {
+          case "summary":
+            printRequestSummary(req);
+            break;
+
+          case "messages":
+            printMessages(req);
+            break;
+
+          case "request":
+            printSection("Request Body", req.request_body);
+            break;
+
+          case "response":
+            printSection("Response Body", req.response_body);
+            break;
+
+          case "metadata":
+            printMetadata(req);
+            break;
+
+          case "properties":
+            printSection("Properties", req.properties || req.request_properties);
+            break;
+
+          case "scores":
+            printSection("Scores", req.scores);
+            break;
+
+          case "all":
+            const format = (options.format || "json") as OutputFormat;
+            if (format === "json") {
+              console.log(JSON.stringify(req, null, 2));
+            } else {
+              console.log(JSON.stringify(req));
+            }
+            break;
+
+          default:
+            console.error(chalk.red(`Unknown section: ${section}`));
+            console.log(chalk.dim("Available: summary, messages, request, response, metadata, properties, scores, all"));
+            process.exit(1);
+        }
       } catch (error) {
         console.error(chalk.red(`Error: ${(error as Error).message}`));
         process.exit(1);
@@ -445,4 +520,250 @@ export function createRequestsCommand(): Command {
     });
 
   return requests;
+}
+
+// ============================================================================
+// Helper Functions for Request Display
+// ============================================================================
+
+/**
+ * Extract a value from an object using a dot-notation path with array support
+ * e.g., "response_body.choices[0].message.content"
+ */
+function extractPath(obj: unknown, path: string): unknown {
+  const parts = path.split(/\.|\[|\]/).filter(Boolean);
+  let current: unknown = obj;
+
+  for (const part of parts) {
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    if (typeof current === "object") {
+      current = (current as Record<string, unknown>)[part];
+    } else {
+      return undefined;
+    }
+  }
+
+  return current;
+}
+
+/**
+ * Print a clean summary of a request
+ */
+function printRequestSummary(req: Record<string, unknown>): void {
+  console.log(chalk.bold("\n📋 Request Summary\n"));
+
+  const summary = [
+    ["ID", req.request_id || req.id],
+    ["Created", req.created_at ? new Date(req.created_at as string).toLocaleString() : "N/A"],
+    ["Model", req.model || req.model_override || "Unknown"],
+    ["Provider", req.provider || "Unknown"],
+    ["Status", formatStatus(req.status as number)],
+    ["Latency", req.latency_ms ? `${req.latency_ms}ms` : "N/A"],
+    ["TTFT", req.time_to_first_token ? `${req.time_to_first_token}ms` : "N/A"],
+  ];
+
+  // Token info
+  const promptTokens = req.prompt_tokens || (req.request_body as Record<string, unknown>)?.usage?.prompt_tokens;
+  const completionTokens = req.completion_tokens || (req.response_body as Record<string, unknown>)?.usage?.completion_tokens;
+  const totalTokens = req.total_tokens || (promptTokens && completionTokens ? (promptTokens as number) + (completionTokens as number) : null);
+
+  if (totalTokens) {
+    summary.push(["Tokens", `${totalTokens} (${promptTokens || "?"} prompt, ${completionTokens || "?"} completion)`]);
+  }
+
+  // Cost
+  if (req.cost_usd || req.cost) {
+    const cost = req.cost_usd || req.cost;
+    summary.push(["Cost", `$${(cost as number).toFixed(6)}`]);
+  }
+
+  // User
+  if (req.user_id) {
+    summary.push(["User ID", req.user_id]);
+  }
+
+  // Path
+  if (req.path || req.target_url) {
+    summary.push(["Path", req.path || req.target_url]);
+  }
+
+  // Print summary table
+  for (const [label, value] of summary) {
+    console.log(`  ${chalk.dim(String(label).padEnd(12))} ${value}`);
+  }
+
+  // Properties preview
+  const properties = req.properties || req.request_properties;
+  if (properties && typeof properties === "object" && Object.keys(properties as object).length > 0) {
+    console.log(`\n  ${chalk.dim("Properties:")} ${Object.keys(properties as object).join(", ")}`);
+  }
+
+  // Scores preview
+  if (req.scores && typeof req.scores === "object" && Object.keys(req.scores as object).length > 0) {
+    console.log(`  ${chalk.dim("Scores:")} ${Object.keys(req.scores as object).join(", ")}`);
+  }
+
+  console.log(chalk.dim("\n  Use --show <section> for more details: messages, request, response, metadata, properties, scores, all"));
+  console.log(chalk.dim("  Use --extract <path> to extract specific fields, e.g., --extract response_body.choices[0].message.content\n"));
+}
+
+/**
+ * Format HTTP status with color
+ */
+function formatStatus(status: number | undefined): string {
+  if (!status) return "N/A";
+  if (status >= 200 && status < 300) return chalk.green(status.toString());
+  if (status >= 400 && status < 500) return chalk.yellow(status.toString());
+  if (status >= 500) return chalk.red(status.toString());
+  return status.toString();
+}
+
+/**
+ * Print messages from a chat completion request
+ */
+function printMessages(req: Record<string, unknown>): void {
+  console.log(chalk.bold("\n💬 Messages\n"));
+
+  // Try to find messages in request body
+  const requestBody = req.request_body as Record<string, unknown> | undefined;
+  const responseBody = req.response_body as Record<string, unknown> | undefined;
+
+  const inputMessages = requestBody?.messages as Array<{ role: string; content: unknown }> | undefined;
+  const outputChoices = responseBody?.choices as Array<{ message?: { role: string; content: string }; delta?: { content: string } }> | undefined;
+
+  if (!inputMessages && !outputChoices) {
+    console.log(chalk.yellow("  No chat messages found. This may not be a chat completion request."));
+    console.log(chalk.dim("  Use --show request or --show response to see raw bodies.\n"));
+    return;
+  }
+
+  // Print input messages
+  if (inputMessages && Array.isArray(inputMessages)) {
+    for (const msg of inputMessages) {
+      printMessage(msg.role, msg.content);
+    }
+  }
+
+  // Print output message
+  if (outputChoices && Array.isArray(outputChoices) && outputChoices.length > 0) {
+    const choice = outputChoices[0];
+    const content = choice.message?.content || choice.delta?.content;
+    if (content) {
+      printMessage("assistant", content);
+    }
+  }
+
+  console.log();
+}
+
+/**
+ * Print a single message with role-based formatting
+ */
+function printMessage(role: string, content: unknown): void {
+  const roleColors: Record<string, (s: string) => string> = {
+    system: chalk.magenta,
+    user: chalk.blue,
+    assistant: chalk.green,
+    function: chalk.yellow,
+    tool: chalk.yellow,
+  };
+
+  const colorFn = roleColors[role] || chalk.white;
+  console.log(colorFn(`  [${role.toUpperCase()}]`));
+
+  // Handle different content types
+  if (typeof content === "string") {
+    // Indent multi-line content
+    const lines = content.split("\n");
+    for (const line of lines) {
+      console.log(`    ${line}`);
+    }
+  } else if (Array.isArray(content)) {
+    // Handle content array (e.g., multimodal messages)
+    for (const part of content) {
+      if (typeof part === "object" && part !== null) {
+        const typedPart = part as { type?: string; text?: string; image_url?: unknown };
+        if (typedPart.type === "text" && typedPart.text) {
+          const lines = typedPart.text.split("\n");
+          for (const line of lines) {
+            console.log(`    ${line}`);
+          }
+        } else if (typedPart.type === "image_url") {
+          console.log(chalk.dim("    [Image]"));
+        } else {
+          console.log(`    ${JSON.stringify(part)}`);
+        }
+      }
+    }
+  } else if (content !== null && content !== undefined) {
+    console.log(`    ${JSON.stringify(content, null, 2).split("\n").join("\n    ")}`);
+  }
+
+  console.log();
+}
+
+/**
+ * Print a section with a title
+ */
+function printSection(title: string, data: unknown): void {
+  console.log(chalk.bold(`\n📄 ${title}\n`));
+
+  if (data === null || data === undefined) {
+    console.log(chalk.yellow("  No data available\n"));
+    return;
+  }
+
+  if (typeof data === "object") {
+    console.log(JSON.stringify(data, null, 2));
+  } else {
+    console.log(String(data));
+  }
+
+  console.log();
+}
+
+/**
+ * Print request metadata (timing, tokens, cost)
+ */
+function printMetadata(req: Record<string, unknown>): void {
+  console.log(chalk.bold("\n📊 Request Metadata\n"));
+
+  // Timing
+  console.log(chalk.cyan("  Timing:"));
+  console.log(`    ${chalk.dim("Created:")}      ${req.created_at ? new Date(req.created_at as string).toISOString() : "N/A"}`);
+  console.log(`    ${chalk.dim("Latency:")}      ${req.latency_ms ? `${req.latency_ms}ms` : "N/A"}`);
+  console.log(`    ${chalk.dim("TTFT:")}         ${req.time_to_first_token ? `${req.time_to_first_token}ms` : "N/A"}`);
+
+  // Model info
+  console.log(chalk.cyan("\n  Model:"));
+  console.log(`    ${chalk.dim("Model:")}        ${req.model || "N/A"}`);
+  console.log(`    ${chalk.dim("Provider:")}     ${req.provider || "N/A"}`);
+  console.log(`    ${chalk.dim("Status:")}       ${formatStatus(req.status as number)}`);
+
+  // Tokens
+  console.log(chalk.cyan("\n  Tokens:"));
+  console.log(`    ${chalk.dim("Prompt:")}       ${req.prompt_tokens ?? "N/A"}`);
+  console.log(`    ${chalk.dim("Completion:")}   ${req.completion_tokens ?? "N/A"}`);
+  console.log(`    ${chalk.dim("Total:")}        ${req.total_tokens ?? "N/A"}`);
+
+  // Cost
+  console.log(chalk.cyan("\n  Cost:"));
+  const cost = req.cost_usd || req.cost;
+  console.log(`    ${chalk.dim("Cost (USD):")}   ${cost ? `$${(cost as number).toFixed(6)}` : "N/A"}`);
+
+  // Location
+  if (req.country_code || req.country) {
+    console.log(chalk.cyan("\n  Location:"));
+    console.log(`    ${chalk.dim("Country:")}      ${req.country_code || req.country || "N/A"}`);
+  }
+
+  // Cache
+  if (req.cache_enabled !== undefined || req.cached !== undefined) {
+    console.log(chalk.cyan("\n  Cache:"));
+    console.log(`    ${chalk.dim("Cached:")}       ${req.cached ? "Yes" : "No"}`);
+  }
+
+  console.log();
 }

@@ -57,8 +57,27 @@ helicone requests list -p environment=production -p user_type=premium
 # Output as JSON
 helicone requests list --format json
 
-# Get single request
+# Get single request (shows summary by default)
 helicone requests get <request-id>
+
+# View just the chat messages (formatted nicely)
+helicone requests get <request-id> --show messages
+
+# View request metadata (timing, tokens, cost)
+helicone requests get <request-id> --show metadata
+
+# View specific sections
+helicone requests get <request-id> --show request    # Request body
+helicone requests get <request-id> --show response   # Response body
+helicone requests get <request-id> --show properties # Custom properties
+helicone requests get <request-id> --show scores     # Evaluation scores
+
+# Extract specific fields (jq-like path syntax)
+helicone requests get <request-id> --extract response_body.choices[0].message.content
+helicone requests get <request-id> --extract request_body.messages
+
+# Get raw JSON (full request object)
+helicone requests get <request-id> --raw
 
 # Export to file
 helicone requests export --since 30d --format jsonl -o requests.jsonl
@@ -85,6 +104,23 @@ helicone requests fields
 | `--min-latency` | Minimum latency (ms) | `--min-latency 1000` |
 | `--max-latency` | Maximum latency (ms) | `--max-latency 5000` |
 | `--cached` | Only cached requests | `--cached` |
+
+#### Viewing Single Requests
+
+The `get` command provides flexible options for viewing request data:
+
+| Option | Description |
+|--------|-------------|
+| `--show summary` | Clean summary with key info (default) |
+| `--show messages` | Formatted chat messages with role colors |
+| `--show request` | Raw request body JSON |
+| `--show response` | Raw response body JSON |
+| `--show metadata` | Timing, tokens, cost breakdown |
+| `--show properties` | Custom properties |
+| `--show scores` | Evaluation scores |
+| `--show all` | Full JSON object |
+| `--extract <path>` | Extract specific field using dot notation |
+| `--raw` | Alias for `--show all --format json` |
 
 ### Sessions
 
@@ -180,6 +216,15 @@ helicone requests export --model gpt-4 --since 30d --format csv -o gpt4-requests
 
 # View session conversation
 helicone sessions get sess_abc123 --include-requests --format json
+
+# View formatted chat messages from a request
+helicone requests get req_abc123 --show messages
+
+# Extract just the assistant's response
+helicone requests get req_abc123 --extract response_body.choices[0].message.content
+
+# Quick look at timing and cost
+helicone requests get req_abc123 --show metadata
 ```
 
 ## Development
