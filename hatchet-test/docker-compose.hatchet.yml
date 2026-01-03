@@ -1,0 +1,104 @@
+version: "3.8"
+name: hatchet-lite-test
+services:
+  postgres:
+    image: postgres:15.6
+    command: postgres -c 'max_connections=200' -c 'shared_buffers=128MB' -c 'fsync=off' -c 'synchronous_commit=off' -c 'full_page_writes=off'
+    restart: "no"
+    environment:
+      - POSTGRES_USER=hatchet
+      - POSTGRES_PASSWORD=hatchet
+      - POSTGRES_DB=hatchet
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d hatchet -U hatchet"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 2s
+
+  hatchet-lite:
+    image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:latest
+    ports:
+      - "8888:8888"
+      - "7077:7077"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database configuration
+      DATABASE_URL: "postgresql://hatchet:hatchet@postgres:5432/hatchet?sslmode=disable"
+
+      # Authentication - relaxed for local dev
+      SERVER_AUTH_COOKIE_DOMAIN: localhost
+      SERVER_AUTH_COOKIE_INSECURE: "t"
+      SERVER_AUTH_SET_EMAIL_VERIFIED: "t"
+
+      # gRPC configuration
+      SERVER_GRPC_BIND_ADDRESS: "0.0.0.0"
+      SERVER_GRPC_INSECURE: "t"
+      SERVER_GRPC_BROADCAST_ADDRESS: localhost:7077
+      SERVER_GRPC_PORT: "7077"
+
+      # Server URL
+      SERVER_URL: http://localhost:8888
+
+      # Engine version
+      SERVER_DEFAULT_ENGINE_VERSION: "V1"
+      SERVER_INTERNAL_CLIENT_INTERNAL_GRPC_BROADCAST_ADDRESS: localhost:7077
+
+      # ============================================
+      # PERFORMANCE TUNING FOR INTEGRATION TESTS
+      # ============================================
+
+      # Buffer flush settings - reduce for faster response in tests
+      # Default is 10ms flush period, 100 items threshold
+      SERVER_FLUSH_PERIOD_MILLISECONDS: "5"
+      SERVER_FLUSH_ITEMS_THRESHOLD: "10"
+
+      # Workflow run buffer - faster flushes for test scenarios
+      SERVER_WORKFLOWRUNBUFFER_FLUSH_PERIOD_MILLISECONDS: "5"
+      SERVER_WORKFLOWRUNBUFFER_FLUSH_ITEMS_THRESHOLD: "10"
+
+      # Event buffer
+      SERVER_EVENTBUFFER_FLUSH_PERIOD_MILLISECONDS: "5"
+      SERVER_EVENTBUFFER_FLUSH_ITEMS_THRESHOLD: "10"
+
+      # Queue step run buffer
+      SERVER_QUEUESTEPRUNBUFFER_FLUSH_PERIOD_MILLISECONDS: "5"
+      SERVER_QUEUESTEPRUNBUFFER_FLUSH_ITEMS_THRESHOLD: "10"
+
+      # Semaphore release buffer
+      SERVER_RELEASESEMAPHOREBUFFER_FLUSH_PERIOD_MILLISECONDS: "5"
+      SERVER_RELEASESEMAPHOREBUFFER_FLUSH_ITEMS_THRESHOLD: "10"
+
+      # Scheduler settings - reduce polling intervals for faster task pickup
+      SCHEDULER_CONCURRENCY_RATE_LIMIT: "100"
+      SCHEDULER_CONCURRENCY_POLLING_MIN_INTERVAL: "50ms"
+      SCHEDULER_CONCURRENCY_POLLING_MAX_INTERVAL: "200ms"
+
+      # Operations polling - reduce for faster status updates
+      SERVER_OPERATIONS_POLL_INTERVAL: "1"
+
+      # Message queue QOS (when using postgres as queue)
+      # Increase for more parallel processing
+      SERVER_MSGQUEUE_POSTGRES_QOS: "200"
+
+      # Logging - set to debug for visibility
+      SERVER_LOGGER_LEVEL: "info"
+
+      # Disable security check for faster startup
+      SERVER_SECURITY_CHECK_ENABLED: "false"
+
+    volumes:
+      - "hatchet_lite_config:/config"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/api/ready"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  hatchet_lite_config:
