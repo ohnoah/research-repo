@@ -131,9 +131,11 @@ function formatValue(value: unknown, field: string): string {
 
   switch (field) {
     case "request_id":
-      // Truncate long IDs
+    case "session_id":
+      // Show enough of UUID to be useful for copy/paste
+      // UUIDs are 36 chars, show first 15 to include most of the unique part
       const id = String(value);
-      return id.length > 12 ? id.substring(0, 12) + "..." : id;
+      return id.length > 15 ? id.substring(0, 15) + "..." : id;
 
     case "created_at":
       // Format date nicely

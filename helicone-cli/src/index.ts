@@ -20,9 +20,7 @@ const program = new Command();
 program
   .name("helicone")
   .description("CLI for fetching data from Helicone")
-  .version("0.1.0")
-  .option("--api-key <key>", "Helicone API key (or set HELICONE_API_KEY)")
-  .option("--region <region>", "API region: us or eu (default: us)");
+  .version("0.1.0");
 
 // Add subcommands
 program.addCommand(createAuthCommand());

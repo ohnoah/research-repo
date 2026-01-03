@@ -68,8 +68,12 @@ export function createMetricsCommand(): Command {
 
         spinner.stop();
 
-        const totalRequests = countResult.data || 0;
         const requests = sampleResult.data || [];
+        // Use count from API if available, otherwise fallback to sample size
+        // (the count endpoint sometimes returns 0 incorrectly)
+        const totalRequests = (countResult.data && countResult.data > 0)
+          ? countResult.data
+          : requests.length;
 
         // Calculate metrics from sample
         let totalTokens = 0;
@@ -81,7 +85,11 @@ export function createMetricsCommand(): Command {
         const providerCounts: Record<string, number> = {};
 
         for (const req of requests) {
-          totalTokens += req.total_tokens || 0;
+          // API returns total_tokens as string, so parse it
+          const tokens = typeof req.total_tokens === "string"
+            ? parseInt(req.total_tokens, 10)
+            : req.total_tokens;
+          totalTokens += tokens || 0;
           totalCost += req.cost || 0;
           totalLatency += req.delay_ms || 0;
 
@@ -147,19 +155,25 @@ export function createMetricsCommand(): Command {
             style: { head: [], border: [] },
           });
 
+          // Format numbers safely (avoid Infinity/NaN display issues)
+          const formatNumber = (n: number) =>
+            Number.isFinite(n) ? n.toLocaleString() : "N/A";
+          const formatFixed = (n: number, digits: number) =>
+            Number.isFinite(n) ? n.toFixed(digits) : "N/A";
+
           summaryTable.push(
-            [chalk.bold("Total Requests"), totalRequests.toLocaleString()],
+            [chalk.bold("Total Requests"), formatNumber(totalRequests)],
             [
               chalk.bold("Estimated Total Cost"),
-              `$${estimatedTotalCost.toFixed(2)}`,
+              `$${formatFixed(estimatedTotalCost, 2)}`,
             ],
             [
               chalk.bold("Estimated Total Tokens"),
-              estimatedTotalTokens.toLocaleString(),
+              formatNumber(Math.round(estimatedTotalTokens)),
             ],
-            [chalk.bold("Avg Latency"), `${avgLatency.toFixed(0)}ms`],
-            [chalk.bold("Avg Tokens/Request"), avgTokens.toFixed(0)],
-            [chalk.bold("Avg Cost/Request"), `$${avgCost.toFixed(4)}`],
+            [chalk.bold("Avg Latency"), `${formatFixed(avgLatency, 0)}ms`],
+            [chalk.bold("Avg Tokens/Request"), formatFixed(avgTokens, 0)],
+            [chalk.bold("Avg Cost/Request"), `$${formatFixed(avgCost, 4)}`],
             [
               chalk.bold("Error Rate"),
               errorRate > 5
@@ -273,7 +287,11 @@ export function createMetricsCommand(): Command {
           }
           groups[key].cost += req.cost || 0;
           groups[key].count += 1;
-          groups[key].tokens += req.total_tokens || 0;
+          // API returns total_tokens as string
+          const tokens = typeof req.total_tokens === "string"
+            ? parseInt(req.total_tokens, 10)
+            : req.total_tokens;
+          groups[key].tokens += tokens || 0;
         }
 
         // Sort by cost
