@@ -685,6 +685,169 @@ export function createRequestsCommand(): Command {
       );
     });
 
+  // ============================================================================
+  // helicone requests filter-help
+  // ============================================================================
+  requests
+    .command("filter-help")
+    .description("Show detailed filter schema documentation")
+    .action(() => {
+      console.log(chalk.bold("\n📋 Helicone Filter Schema\n"));
+
+      console.log(chalk.cyan("BASIC USAGE:"));
+      console.log(`
+  Most common filters are available as CLI options:
+
+    helicone requests list --model gpt-4o --status 200 --since 7d
+    helicone requests list --search "error" --min-cost 0.01
+    helicone requests list -p environment=production
+
+`);
+
+      console.log(chalk.cyan("ADVANCED FILTERS (--filter / --filter-file):"));
+      console.log(`
+  For complex AND/OR queries, use raw JSON filters:
+
+    helicone requests list --filter '<json>'
+    helicone requests list --filter-file ./filter.json
+
+`);
+
+      console.log(chalk.cyan("FILTER STRUCTURE:"));
+      console.log(`
+  A filter is either a ${chalk.yellow("leaf")} (single condition) or a ${chalk.yellow("branch")} (AND/OR):
+
+  ${chalk.dim("Leaf (single condition):")}
+  {
+    "request_response_rmt": {
+      "<field>": { "<operator>": <value> }
+    }
+  }
+
+  ${chalk.dim("Branch (combine conditions):")}
+  {
+    "left": <filter>,
+    "operator": "and" | "or",
+    "right": <filter>
+  }
+
+`);
+
+      console.log(chalk.cyan("AVAILABLE FIELDS:"));
+      const fields = [
+        ["model", "string", "Model name (e.g., 'gpt-4o')"],
+        ["status", "number", "HTTP status code (e.g., 200, 500)"],
+        ["user_id", "string", "Your app's user ID"],
+        ["provider", "string", "Provider (OPENAI, ANTHROPIC, etc.)"],
+        ["latency", "number", "Latency in milliseconds"],
+        ["cost", "number", "Cost in USD (precision: 0.000001)"],
+        ["request_created_at", "date", "Request timestamp (ISO format)"],
+        ["request_body", "text", "Full-text search in request"],
+        ["response_body", "text", "Full-text search in response"],
+        ["prompt_id", "string", "Prompt template ID"],
+        ["prompt_tokens", "number", "Input token count"],
+        ["completion_tokens", "number", "Output token count"],
+        ["total_tokens", "number", "Total token count"],
+        ["country_code", "string", "Two-letter country code"],
+        ["target_url", "string", "API endpoint URL"],
+        ["time_to_first_token", "number", "TTFT in milliseconds"],
+        ["cache_enabled", "boolean", "Whether caching was enabled"],
+        ["cached", "boolean", "Whether response was cached"],
+        ["request_id", "string", "Request UUID"],
+        ["threat", "boolean", "Flagged as potential threat"],
+      ];
+
+      for (const [field, type, desc] of fields) {
+        console.log(`  ${chalk.yellow(field.padEnd(22))} ${chalk.dim(type.padEnd(8))} ${desc}`);
+      }
+
+      console.log(chalk.cyan("\n\nOPERATORS BY TYPE:"));
+      console.log(`
+  ${chalk.yellow("Text fields:")}
+    equals        Exact match              {"model": {"equals": "gpt-4o"}}
+    not-equals    Not equal                {"model": {"not-equals": "gpt-3.5-turbo"}}
+    like          SQL LIKE (case-sens)     {"model": {"like": "gpt-4%"}}
+    ilike         SQL ILIKE (case-insens)  {"model": {"ilike": "%gpt-4%"}}
+    contains      Contains substring       {"model": {"contains": "gpt"}}
+    not-contains  Doesn't contain          {"model": {"not-contains": "turbo"}}
+
+  ${chalk.yellow("Number fields:")}
+    equals        Equal to                 {"status": {"equals": 200}}
+    not-equals    Not equal to             {"status": {"not-equals": 500}}
+    gte           Greater or equal         {"cost": {"gte": 0.01}}
+    gt            Greater than             {"latency": {"gt": 1000}}
+    lte           Less or equal            {"cost": {"lte": 1.00}}
+    lt            Less than                {"latency": {"lt": 500}}
+
+  ${chalk.yellow("Body search:")}
+    contains      Full-text search         {"response_body": {"contains": "error"}}
+
+  ${chalk.yellow("Boolean fields:")}
+    equals        True or false            {"cached": {"equals": true}}
+
+  ${chalk.yellow("Date fields:")}
+    equals        Exact timestamp          {"request_created_at": {"equals": "2024-01-01T00:00:00Z"}}
+    gte           On or after              {"request_created_at": {"gte": "2024-01-01"}}
+    lte           On or before             {"request_created_at": {"lte": "2024-01-31"}}
+
+`);
+
+      console.log(chalk.cyan("PROPERTIES & SCORES:"));
+      console.log(`
+  ${chalk.dim("Filter by custom property:")}
+  {
+    "request_response_rmt": {
+      "properties": {
+        "environment": {"equals": "production"}
+      }
+    }
+  }
+
+  ${chalk.dim("Filter by score:")}
+  {
+    "request_response_rmt": {
+      "scores": {
+        "quality": {"equals": "good"}
+      }
+    }
+  }
+
+`);
+
+      console.log(chalk.cyan("EXAMPLES:"));
+      console.log(`
+  ${chalk.dim("1. OR filter - status 200 or 201:")}
+  {
+    "left": {"request_response_rmt": {"status": {"equals": 200}}},
+    "operator": "or",
+    "right": {"request_response_rmt": {"status": {"equals": 201}}}
+  }
+
+  ${chalk.dim("2. Complex nested filter:")}
+  {
+    "left": {
+      "left": {"request_response_rmt": {"model": {"ilike": "%gpt-4%"}}},
+      "operator": "and",
+      "right": {"request_response_rmt": {"status": {"equals": 200}}}
+    },
+    "operator": "and",
+    "right": {
+      "left": {"request_response_rmt": {"cost": {"gte": 0.01}}},
+      "operator": "or",
+      "right": {"request_response_rmt": {"response_body": {"contains": "error"}}}
+    }
+  }
+  ${chalk.dim("= (model~gpt-4 AND status=200) AND (cost>=0.01 OR body~error)")}
+
+  ${chalk.dim("3. Combining with CLI options:")}
+  ${chalk.green("helicone requests list --filter-file filter.json --since 24h --model gpt-4o")}
+  ${chalk.dim("(All conditions are AND-combined)")}
+
+`);
+
+      console.log(chalk.dim("Tip: Use --filter-file for complex filters to avoid shell escaping issues\n"));
+    });
+
   return requests;
 }
 
