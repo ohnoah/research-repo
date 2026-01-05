@@ -164,12 +164,13 @@ def list_runs(
         formatter = OutputFormatter(output_format)
 
         if output_format == "table":
+            # Updated for stable API response structure
             columns = [
                 ("metadata.id", "ID", lambda x: x[:12] + "..." if x else "-"),
-                ("workflowVersion.workflow.name", "Workflow"),
+                ("workflowName", "Workflow", lambda x: x.replace("local-dev_", "") if x else "-"),
+                ("displayName", "Display Name", lambda x: (x[:30] + "...") if x and len(x) > 33 else (x or "-")),
                 ("status", "Status", lambda x: str(colorize_status(x)) if x else "-"),
-                ("metadata.createdAt", "Created", lambda x: format_timestamp(x, relative=True)),
-                ("startedAt", "Started", lambda x: format_timestamp(x, relative=True) if x else "-"),
+                ("createdAt", "Created", lambda x: format_timestamp(x, relative=True)),
                 ("finishedAt", "Finished", lambda x: format_timestamp(x, relative=True) if x else "-"),
             ]
 
@@ -396,10 +397,16 @@ def inspect_run(
         console = Console()
 
         # === Header ===
-        workflow_name = run.get("workflowVersion", {}).get("workflow", {}).get("name", "Unknown")
-        status = run.get("status", "UNKNOWN")
+        # Handle stable API response format (nested under 'run' key)
+        run_data = run.get("run", run)  # Use nested 'run' if present, else use run itself
+        tasks_data = run.get("tasks", [])
+        shape_data = run.get("shape", [])
+        task_events = run.get("taskEvents", [])
+
+        display_name = run_data.get("displayName", "Unknown")
+        status = run_data.get("status", "UNKNOWN")
         console.print(Panel(
-            f"[bold]{workflow_name}[/bold]\n"
+            f"[bold]{display_name}[/bold]\n"
             f"Run ID: {run_id}\n"
             f"Status: {colorize_status(status)}",
             title="Workflow Run",
@@ -408,10 +415,10 @@ def inspect_run(
 
         # === Timing ===
         console.print("\n[bold]Timing[/bold]")
-        created = format_timestamp(run.get("metadata", {}).get("createdAt"))
-        started = format_timestamp(run.get("startedAt")) if run.get("startedAt") else "-"
-        finished = format_timestamp(run.get("finishedAt")) if run.get("finishedAt") else "-"
-        duration = format_duration(run.get("startedAt"), run.get("finishedAt"))
+        created = format_timestamp(run_data.get("createdAt") or run_data.get("metadata", {}).get("createdAt"))
+        started = format_timestamp(run_data.get("startedAt")) if run_data.get("startedAt") and run_data.get("startedAt") != "0001-01-01T00:00:00Z" else "-"
+        finished = format_timestamp(run_data.get("finishedAt")) if run_data.get("finishedAt") else "-"
+        duration = format_duration(run_data.get("startedAt"), run_data.get("finishedAt")) if run_data.get("startedAt") and run_data.get("startedAt") != "0001-01-01T00:00:00Z" else "-"
         console.print(f"  Created:  {created}")
         console.print(f"  Started:  {started}")
         console.print(f"  Finished: {finished}")
@@ -420,58 +427,52 @@ def inspect_run(
         # === Input ===
         if show_input:
             console.print("\n[bold]Input Data[/bold]")
-            try:
-                input_data = client.get_workflow_run_input(run_id)
-                if input_data:
-                    output_json(input_data)
-                else:
-                    console.print("  [dim]No input data[/dim]")
-            except Exception as e:
-                console.print(f"  [dim]Could not fetch input: {e}[/dim]")
+            # Input is now directly in run_data for stable API
+            input_data = run_data.get("input")
+            if input_data:
+                output_json(input_data)
+            else:
+                console.print("  [dim]No input data[/dim]")
 
         # === Tasks/Steps ===
         console.print("\n[bold]Tasks[/bold]")
 
-        # Try to get timing info for more detail
-        try:
-            timings = client.get_task_timings(run_id)
-            timing_data = timings if isinstance(timings, list) else timings.get("rows", [])
-        except Exception:
-            timing_data = []
-
-        job_runs = run.get("jobRuns", [])
-        if job_runs:
+        # Tasks are now directly in the response
+        if tasks_data:
             task_table = Table(box=box.SIMPLE)
             task_table.add_column("Task", style="bold")
             task_table.add_column("Status")
             task_table.add_column("Duration")
-            task_table.add_column("Started")
+            task_table.add_column("Finished")
 
-            for job_run in job_runs:
-                step_runs = job_run.get("stepRuns", [])
-                for step_run in step_runs:
-                    step_name = step_run.get("step", {}).get("readableId", step_run.get("id", "unnamed")[:12])
-                    step_status = step_run.get("status", "UNKNOWN")
-                    step_started = format_timestamp(step_run.get("startedAt"), relative=True) if step_run.get("startedAt") else "-"
-                    step_duration = format_duration(step_run.get("startedAt"), step_run.get("finishedAt"))
+            for task in tasks_data:
+                task_name = task.get("displayName", task.get("actionId", "unnamed"))
+                # Shorten the name if too long
+                if len(task_name) > 50:
+                    task_name = task_name[:47] + "..."
+                task_status = task.get("status", "UNKNOWN")
+                task_finished = format_timestamp(task.get("finishedAt"), relative=True) if task.get("finishedAt") else "-"
+                # Calculate duration from metadata.createdAt to finishedAt
+                task_created = task.get("metadata", {}).get("createdAt")
+                task_duration = format_duration(task_created, task.get("finishedAt")) if task_created and task.get("finishedAt") else "-"
 
-                    task_table.add_row(
-                        step_name,
-                        str(colorize_status(step_status)),
-                        step_duration,
-                        step_started,
-                    )
+                task_table.add_row(
+                    task_name,
+                    str(colorize_status(task_status)),
+                    task_duration,
+                    task_finished,
+                )
 
-                    # Show output if requested
-                    if show_output and step_run.get("output"):
-                        console.print(task_table)
-                        console.print(f"\n  [dim]Output for {step_name}:[/dim]")
-                        output_json(step_run.get("output"))
-                        task_table = Table(box=box.SIMPLE)
-                        task_table.add_column("Task", style="bold")
-                        task_table.add_column("Status")
-                        task_table.add_column("Duration")
-                        task_table.add_column("Started")
+                # Show output if requested
+                if show_output and task.get("output"):
+                    console.print(task_table)
+                    console.print(f"\n  [dim]Output for {task_name}:[/dim]")
+                    output_json(task.get("output"))
+                    task_table = Table(box=box.SIMPLE)
+                    task_table.add_column("Task", style="bold")
+                    task_table.add_column("Status")
+                    task_table.add_column("Duration")
+                    task_table.add_column("Finished")
 
             if task_table.row_count > 0:
                 console.print(task_table)
@@ -479,7 +480,7 @@ def inspect_run(
             console.print("  [dim]No tasks found[/dim]")
 
         # === Errors ===
-        error = run.get("error")
+        error = run_data.get("errorMessage")
         if error:
             console.print(f"\n[bold red]Error[/bold red]")
             console.print(f"  {error}")

@@ -516,7 +516,32 @@ class HatchetClient:
         if additional_metadata:
             params["additionalMetadata"] = additional_metadata
 
-        return self._get(f"/api/v1/tenants/{tid}/workflows/runs", params=params)
+        # Use stable API which requires 'since' and 'only_tasks' parameters
+        from datetime import datetime, timedelta, timezone
+        if not params.get("since"):
+            # Default to last 7 days if no since provided
+            default_since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            params["since"] = created_after or default_since
+        else:
+            params["since"] = params.get("since") or created_after
+        params["only_tasks"] = "false"
+        # Map old parameter names to new API
+        if created_after:
+            params["since"] = created_after
+        if created_before:
+            params["until"] = created_before
+        # Clean up old params not in stable API
+        params.pop("createdAfter", None)
+        params.pop("createdBefore", None)
+        params.pop("finishedAfter", None)
+        params.pop("finishedBefore", None)
+        params.pop("orderByField", None)
+        params.pop("orderByDirection", None)
+        params.pop("workflowId", None)
+        if workflow_id:
+            params["workflow_ids"] = [workflow_id]
+
+        return self._get(f"/api/v1/stable/tenants/{tid}/workflow-runs", params=params)
 
     def get_workflow_run(self, workflow_run_id: str) -> Dict[str, Any]:
         """
@@ -528,7 +553,7 @@ class HatchetClient:
         Returns:
             Detailed workflow run information including steps
         """
-        return self._get(f"/api/v1/workflow-runs/{workflow_run_id}")
+        return self._get(f"/api/v1/stable/workflow-runs/{workflow_run_id}")
 
     def get_workflow_run_status(self, workflow_run_id: str) -> Dict[str, Any]:
         """
@@ -540,7 +565,7 @@ class HatchetClient:
         Returns:
             Workflow run status
         """
-        return self._get(f"/api/v1/workflow-runs/{workflow_run_id}/status")
+        return self._get(f"/api/v1/stable/workflow-runs/{workflow_run_id}/status")
 
     def get_workflow_run_input(
         self, workflow_run_id: str, tenant_id: Optional[str] = None
@@ -584,7 +609,7 @@ class HatchetClient:
         Returns:
             List of task events
         """
-        return self._get(f"/api/v1/workflow-runs/{workflow_run_id}/task-events")
+        return self._get(f"/api/v1/stable/workflow-runs/{workflow_run_id}/task-events")
 
     def get_task_timings(self, workflow_run_id: str) -> Dict[str, Any]:
         """
@@ -596,7 +621,7 @@ class HatchetClient:
         Returns:
             Task timing data
         """
-        return self._get(f"/api/v1/workflow-runs/{workflow_run_id}/task-timings")
+        return self._get(f"/api/v1/stable/workflow-runs/{workflow_run_id}/task-timings")
 
     def cancel_workflow_runs(
         self,
@@ -692,9 +717,16 @@ class HatchetClient:
             List of child workflow runs
         """
         tid = self._require_tenant(tenant_id)
+        from datetime import datetime, timedelta, timezone
+        since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         return self._get(
-            f"/api/v1/tenants/{tid}/workflows/runs",
-            params={"parentWorkflowRunId": parent_run_id, "limit": limit},
+            f"/api/v1/stable/tenants/{tid}/workflow-runs",
+            params={
+                "parent_task_external_id": parent_run_id,
+                "limit": limit,
+                "since": since,
+                "only_tasks": "false",
+            },
         )
 
     # =========================================================================
