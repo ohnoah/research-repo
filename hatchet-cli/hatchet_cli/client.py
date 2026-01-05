@@ -674,6 +674,29 @@ class HatchetClient:
             params["additionalMetadata"] = additional_metadata
         return self._get(f"/api/v1/tenants/{tid}/workflows/runs/metrics", params=params)
 
+    def list_child_runs(
+        self,
+        parent_run_id: str,
+        tenant_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> Dict[str, Any]:
+        """
+        List child workflow runs spawned by a parent run.
+
+        Args:
+            parent_run_id: The parent workflow run ID
+            tenant_id: The tenant ID. Uses default if not provided.
+            limit: Maximum number of child runs to return
+
+        Returns:
+            List of child workflow runs
+        """
+        tid = self._require_tenant(tenant_id)
+        return self._get(
+            f"/api/v1/tenants/{tid}/workflows/runs",
+            params={"parentWorkflowRunId": parent_run_id, "limit": limit},
+        )
+
     # =========================================================================
     # Step Runs
     # =========================================================================
