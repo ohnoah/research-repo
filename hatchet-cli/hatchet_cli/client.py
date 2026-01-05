@@ -118,9 +118,13 @@ class HatchetClient:
             return None
 
         try:
-            data = response.json() if response.content else None
+            data = response.json() if response.content else {}
         except json.JSONDecodeError:
             data = {"message": response.text}
+
+        # Ensure data is a dict for .get() calls
+        if data is None:
+            data = {}
 
         if response.status_code == 401:
             raise HatchetAuthenticationError(
@@ -512,7 +516,7 @@ class HatchetClient:
         if additional_metadata:
             params["additionalMetadata"] = additional_metadata
 
-        return self._get(f"/api/v1/tenants/{tid}/workflow-runs", params=params)
+        return self._get(f"/api/v1/tenants/{tid}/workflows/runs", params=params)
 
     def get_workflow_run(self, workflow_run_id: str) -> Dict[str, Any]:
         """
@@ -552,7 +556,7 @@ class HatchetClient:
             The input data passed to the workflow
         """
         tid = self._require_tenant(tenant_id)
-        return self._get(f"/api/v1/tenants/{tid}/workflow-runs/{workflow_run_id}/input")
+        return self._get(f"/api/v1/tenants/{tid}/workflows/runs/{workflow_run_id}/input")
 
     def get_workflow_run_shape(
         self, workflow_run_id: str, tenant_id: Optional[str] = None
@@ -568,7 +572,7 @@ class HatchetClient:
             The workflow run DAG structure
         """
         tid = self._require_tenant(tenant_id)
-        return self._get(f"/api/v1/tenants/{tid}/workflow-runs/{workflow_run_id}/shape")
+        return self._get(f"/api/v1/tenants/{tid}/workflows/runs/{workflow_run_id}/shape")
 
     def get_task_events(self, workflow_run_id: str) -> Dict[str, Any]:
         """
@@ -632,7 +636,7 @@ class HatchetClient:
         """
         tid = self._require_tenant(tenant_id)
         return self._post(
-            f"/api/v1/tenants/{tid}/workflow-runs/replay",
+            f"/api/v1/tenants/{tid}/workflows/runs/replay",
             json_data={"workflowRunIds": workflow_run_ids},
         )
 
