@@ -104,6 +104,12 @@ helicone requests fields
 | `--min-latency` | Minimum latency (ms) | `--min-latency 1000` |
 | `--max-latency` | Maximum latency (ms) | `--max-latency 5000` |
 | `--cached` | Only cached requests | `--cached` |
+| `--search` | **Full-text search** in bodies | `--search "error"` |
+| `--request-contains` | Search request body only | `--request-contains "function call"` |
+| `--response-contains` | Search response body only | `--response-contains "I apologize"` |
+| `--model-contains` | Partial model name match | `--model-contains gpt-4` |
+| `--prompt-id` | Filter by prompt ID | `--prompt-id prompt_123` |
+| `--score` | Filter by score | `-s quality=good` |
 
 #### Viewing Single Requests
 
@@ -225,6 +231,18 @@ helicone requests get req_abc123 --extract response_body.choices[0].message.cont
 
 # Quick look at timing and cost
 helicone requests get req_abc123 --show metadata
+
+# Search for requests containing "error" in the response (server-side full-text search)
+helicone requests list --search "error" --since 24h
+
+# Find all requests that mentioned a specific topic
+helicone requests list --response-contains "refund policy"
+
+# Find requests with function calls
+helicone requests list --request-contains "function_call" --model-contains gpt-4
+
+# Export requests filtered by custom score
+helicone requests export --score sentiment=negative --since 7d -o negative-sentiment.jsonl
 ```
 
 ## Development

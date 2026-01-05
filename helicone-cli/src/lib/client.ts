@@ -298,6 +298,7 @@ export class HeliconeClient {
  */
 export function buildFilter(conditions: {
   model?: string;
+  modelContains?: string;
   status?: number;
   userId?: string;
   provider?: string;
@@ -309,6 +310,13 @@ export function buildFilter(conditions: {
   maxLatency?: number;
   properties?: Record<string, string>;
   cached?: boolean;
+  // New: Body search filters (server-side full-text search)
+  requestBodyContains?: string;
+  responseBodyContains?: string;
+  // New: Score filters
+  scores?: Record<string, string>;
+  // New: Prompt ID
+  promptId?: string;
 }): FilterNode {
   const filters: FilterNode[] = [];
 
@@ -415,6 +423,53 @@ export function buildFilter(conditions: {
     filters.push({
       request_response_rmt: {
         cache_enabled: { equals: conditions.cached },
+      },
+    });
+  }
+
+  // Model contains filter (partial match with ilike)
+  if (conditions.modelContains) {
+    filters.push({
+      request_response_rmt: {
+        model: { ilike: `%${conditions.modelContains}%` },
+      },
+    });
+  }
+
+  // Request body contains filter (full-text search)
+  if (conditions.requestBodyContains) {
+    filters.push({
+      request_response_rmt: {
+        request_body: { contains: conditions.requestBodyContains },
+      },
+    });
+  }
+
+  // Response body contains filter (full-text search)
+  if (conditions.responseBodyContains) {
+    filters.push({
+      request_response_rmt: {
+        response_body: { contains: conditions.responseBodyContains },
+      },
+    });
+  }
+
+  // Score filters
+  if (conditions.scores) {
+    for (const [key, value] of Object.entries(conditions.scores)) {
+      filters.push({
+        request_response_rmt: {
+          scores: { [key]: { equals: value } },
+        },
+      });
+    }
+  }
+
+  // Prompt ID filter
+  if (conditions.promptId) {
+    filters.push({
+      request_response_rmt: {
+        prompt_id: { equals: conditions.promptId },
       },
     });
   }

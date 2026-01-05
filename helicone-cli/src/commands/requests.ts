@@ -62,10 +62,33 @@ export function createRequestsCommand(): Command {
     .option("--min-latency <ms>", "Minimum latency in milliseconds")
     .option("--max-latency <ms>", "Maximum latency in milliseconds")
     .option("--cached", "Only show cached requests")
+    .option("--search <text>", "Search in request and response bodies (server-side full-text search)")
+    .option("--request-contains <text>", "Search in request body only")
+    .option("--response-contains <text>", "Search in response body only")
+    .option("--model-contains <text>", "Partial match on model name (e.g., 'gpt-4' matches 'gpt-4o', 'gpt-4-turbo')")
+    .option("--prompt-id <id>", "Filter by prompt ID")
+    .option(
+      "-s, --score <key=value>",
+      "Filter by score (can be used multiple times)",
+      (value: string, previous: string[]) => {
+        previous.push(value);
+        return previous;
+      },
+      [] as string[]
+    )
     .option("--api-key <key>", "Helicone API key")
     .option("--region <region>", "API region (us or eu)")
     .option("-q, --quiet", "Suppress non-essential output")
-    .action(async (options: ListOptions & { cached?: boolean; property: string[] }) => {
+    .action(async (options: ListOptions & {
+      cached?: boolean;
+      property: string[];
+      search?: string;
+      requestContains?: string;
+      responseContains?: string;
+      modelContains?: string;
+      promptId?: string;
+      score: string[];
+    }) => {
       try {
         const auth = getAuthContext(options.apiKey, options.region);
         const client = new HeliconeClient(auth);
@@ -83,8 +106,24 @@ export function createRequestsCommand(): Command {
           }
         }
 
+        // Parse score filters
+        const scores: Record<string, string> = {};
+        for (const score of options.score || []) {
+          const [key, value] = score.split("=");
+          if (key && value) {
+            scores[key] = value;
+          }
+        }
+
+        // Handle --search as searching both request and response body
+        // If --search is used, we'll search response body (most common use case)
+        // For more specific searches, use --request-contains or --response-contains
+        const responseBodyContains = options.search || options.responseContains;
+        const requestBodyContains = options.requestContains;
+
         const filter = buildFilter({
           model: options.model,
+          modelContains: options.modelContains,
           status: options.status ? parseInt(options.status, 10) : undefined,
           userId: options.userId,
           startDate,
@@ -99,6 +138,10 @@ export function createRequestsCommand(): Command {
             : undefined,
           properties: Object.keys(properties).length > 0 ? properties : undefined,
           cached: options.cached,
+          requestBodyContains,
+          responseBodyContains,
+          scores: Object.keys(scores).length > 0 ? scores : undefined,
+          promptId: options.promptId,
         });
 
         const limit = parseInt(options.limit as string, 10);
@@ -311,9 +354,31 @@ export function createRequestsCommand(): Command {
       },
       [] as string[]
     )
+    .option("--search <text>", "Search in request and response bodies")
+    .option("--request-contains <text>", "Search in request body only")
+    .option("--response-contains <text>", "Search in response body only")
+    .option("--model-contains <text>", "Partial match on model name")
+    .option("--prompt-id <id>", "Filter by prompt ID")
+    .option(
+      "-s, --score <key=value>",
+      "Filter by score",
+      (value: string, previous: string[]) => {
+        previous.push(value);
+        return previous;
+      },
+      [] as string[]
+    )
     .option("--api-key <key>", "Helicone API key")
     .option("--region <region>", "API region (us or eu)")
-    .action(async (options: ExportOptions & { property: string[] }) => {
+    .action(async (options: ExportOptions & {
+      property: string[];
+      search?: string;
+      requestContains?: string;
+      responseContains?: string;
+      modelContains?: string;
+      promptId?: string;
+      score: string[];
+    }) => {
       try {
         const auth = getAuthContext(options.apiKey, options.region);
         const client = new HeliconeClient(auth);
@@ -331,13 +396,30 @@ export function createRequestsCommand(): Command {
           }
         }
 
+        // Parse score filters
+        const scores: Record<string, string> = {};
+        for (const score of options.score || []) {
+          const [key, value] = score.split("=");
+          if (key && value) {
+            scores[key] = value;
+          }
+        }
+
+        const responseBodyContains = options.search || options.responseContains;
+        const requestBodyContains = options.requestContains;
+
         const filter = buildFilter({
           model: options.model,
+          modelContains: options.modelContains,
           status: options.status ? parseInt(options.status, 10) : undefined,
           userId: options.userId,
           startDate,
           endDate,
           properties: Object.keys(properties).length > 0 ? properties : undefined,
+          requestBodyContains,
+          responseBodyContains,
+          scores: Object.keys(scores).length > 0 ? scores : undefined,
+          promptId: options.promptId,
         });
 
         const outputPath = options.output || "requests-export.jsonl";
