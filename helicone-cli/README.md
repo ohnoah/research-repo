@@ -110,6 +110,99 @@ helicone requests fields
 | `--model-contains` | Partial model name match | `--model-contains gpt-4` |
 | `--prompt-id` | Filter by prompt ID | `--prompt-id prompt_123` |
 | `--score` | Filter by score | `-s quality=good` |
+| `--filter` | Raw JSON filter for complex queries | `--filter '{"left":...}'` |
+| `--filter-file` | Load filter from JSON file | `--filter-file filter.json` |
+
+#### Advanced Filters (AND/OR)
+
+For complex queries, use `--filter` with Helicone's filter JSON schema:
+
+```bash
+# OR filter: status 200 OR status 201
+helicone requests list --filter '{
+  "left": {"request_response_rmt": {"status": {"equals": 200}}},
+  "operator": "or",
+  "right": {"request_response_rmt": {"status": {"equals": 201}}}
+}'
+
+# Load from file for complex filters
+helicone requests list --filter-file ./my-filter.json
+```
+
+**Filter Schema:**
+
+```json
+{
+  "left": <filter_node>,
+  "operator": "and" | "or",
+  "right": <filter_node>
+}
+```
+
+Where `<filter_node>` is either another branch or a leaf:
+
+```json
+{
+  "request_response_rmt": {
+    "<field>": { "<operator>": <value> }
+  }
+}
+```
+
+**Available fields:** `model`, `status`, `user_id`, `provider`, `latency`, `cost`, `request_created_at`, `response_body`, `request_body`, `prompt_id`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `country_code`, `target_url`
+
+**Operators:**
+- Text: `equals`, `not-equals`, `like`, `ilike`, `contains`, `not-contains`
+- Numbers: `equals`, `not-equals`, `gte`, `lte`, `gt`, `lt`
+- Body search: `contains` (full-text search)
+
+**Example filter file (filter.json):**
+
+```json
+{
+  "left": {
+    "left": {
+      "request_response_rmt": {
+        "model": { "ilike": "%gpt-4%" }
+      }
+    },
+    "operator": "and",
+    "right": {
+      "request_response_rmt": {
+        "status": { "equals": 200 }
+      }
+    }
+  },
+  "operator": "and",
+  "right": {
+    "left": {
+      "request_response_rmt": {
+        "cost": { "gte": 0.01 }
+      }
+    },
+    "operator": "or",
+    "right": {
+      "request_response_rmt": {
+        "response_body": { "contains": "error" }
+      }
+    }
+  }
+}
+```
+
+This finds: (model contains "gpt-4" AND status=200) AND (cost >= $0.01 OR response contains "error")
+
+**Combining with convenience options:**
+
+Raw filters are AND-combined with other options:
+
+```bash
+# Complex filter AND model gpt-4o AND last 24h
+helicone requests list \
+  --filter-file ./custom-filter.json \
+  --model gpt-4o \
+  --since 24h
+```
 
 #### Viewing Single Requests
 

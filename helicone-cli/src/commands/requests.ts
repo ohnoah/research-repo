@@ -15,7 +15,25 @@ import {
   REQUEST_AVAILABLE_FIELDS,
   REQUEST_DEFAULT_FIELDS,
 } from "../lib/output.js";
-import type { OutputFormat, ListOptions, GetOptions, ExportOptions } from "../lib/types.js";
+import type { OutputFormat, ListOptions, GetOptions, ExportOptions, FilterNode } from "../lib/types.js";
+
+/**
+ * Combine two filter nodes with AND operator
+ * Returns "all" if both are empty, one filter if the other is "all", or AND-combined
+ */
+function combineFilters(filter1: FilterNode | null, filter2: FilterNode): FilterNode {
+  if (filter1 === null || filter1 === "all" || (typeof filter1 === "object" && Object.keys(filter1).length === 0)) {
+    return filter2;
+  }
+  if (filter2 === "all" || (typeof filter2 === "object" && Object.keys(filter2).length === 0)) {
+    return filter1;
+  }
+  return {
+    left: filter1,
+    operator: "and",
+    right: filter2,
+  };
+}
 
 export function createRequestsCommand(): Command {
   const requests = new Command("requests").description(
@@ -76,6 +94,14 @@ export function createRequestsCommand(): Command {
       },
       [] as string[]
     )
+    .option(
+      "--filter <json>",
+      "Raw filter JSON for complex AND/OR queries (see docs for filter schema)"
+    )
+    .option(
+      "--filter-file <path>",
+      "Load filter from a JSON file"
+    )
     .option("--api-key <key>", "Helicone API key")
     .option("--region <region>", "API region (us or eu)")
     .option("-q, --quiet", "Suppress non-essential output")
@@ -88,6 +114,8 @@ export function createRequestsCommand(): Command {
       modelContains?: string;
       promptId?: string;
       score: string[];
+      filter?: string;
+      filterFile?: string;
     }) => {
       try {
         const auth = getAuthContext(options.apiKey, options.region);
@@ -121,7 +149,8 @@ export function createRequestsCommand(): Command {
         const responseBodyContains = options.search || options.responseContains;
         const requestBodyContains = options.requestContains;
 
-        const filter = buildFilter({
+        // Build convenience filter from options
+        const convenienceFilter = buildFilter({
           model: options.model,
           modelContains: options.modelContains,
           status: options.status ? parseInt(options.status, 10) : undefined,
@@ -143,6 +172,28 @@ export function createRequestsCommand(): Command {
           scores: Object.keys(scores).length > 0 ? scores : undefined,
           promptId: options.promptId,
         });
+
+        // Parse raw filter JSON if provided
+        let rawFilter: FilterNode | null = null;
+        if (options.filterFile) {
+          try {
+            const filterContent = fs.readFileSync(options.filterFile, "utf-8");
+            rawFilter = JSON.parse(filterContent);
+          } catch (err) {
+            console.error(chalk.red(`Error reading filter file: ${(err as Error).message}`));
+            process.exit(1);
+          }
+        } else if (options.filter) {
+          try {
+            rawFilter = JSON.parse(options.filter);
+          } catch (err) {
+            console.error(chalk.red(`Error parsing filter JSON: ${(err as Error).message}`));
+            process.exit(1);
+          }
+        }
+
+        // Combine filters: raw filter AND convenience filter
+        const filter = combineFilters(rawFilter, convenienceFilter);
 
         const limit = parseInt(options.limit as string, 10);
         const offset = parseInt(options.offset as string, 10);
@@ -368,6 +419,14 @@ export function createRequestsCommand(): Command {
       },
       [] as string[]
     )
+    .option(
+      "--filter <json>",
+      "Raw filter JSON for complex AND/OR queries"
+    )
+    .option(
+      "--filter-file <path>",
+      "Load filter from a JSON file"
+    )
     .option("--api-key <key>", "Helicone API key")
     .option("--region <region>", "API region (us or eu)")
     .action(async (options: ExportOptions & {
@@ -378,6 +437,8 @@ export function createRequestsCommand(): Command {
       modelContains?: string;
       promptId?: string;
       score: string[];
+      filter?: string;
+      filterFile?: string;
     }) => {
       try {
         const auth = getAuthContext(options.apiKey, options.region);
@@ -408,7 +469,8 @@ export function createRequestsCommand(): Command {
         const responseBodyContains = options.search || options.responseContains;
         const requestBodyContains = options.requestContains;
 
-        const filter = buildFilter({
+        // Build convenience filter from options
+        const convenienceFilter = buildFilter({
           model: options.model,
           modelContains: options.modelContains,
           status: options.status ? parseInt(options.status, 10) : undefined,
@@ -421,6 +483,28 @@ export function createRequestsCommand(): Command {
           scores: Object.keys(scores).length > 0 ? scores : undefined,
           promptId: options.promptId,
         });
+
+        // Parse raw filter JSON if provided
+        let rawFilter: FilterNode | null = null;
+        if (options.filterFile) {
+          try {
+            const filterContent = fs.readFileSync(options.filterFile, "utf-8");
+            rawFilter = JSON.parse(filterContent);
+          } catch (err) {
+            console.error(chalk.red(`Error reading filter file: ${(err as Error).message}`));
+            process.exit(1);
+          }
+        } else if (options.filter) {
+          try {
+            rawFilter = JSON.parse(options.filter);
+          } catch (err) {
+            console.error(chalk.red(`Error parsing filter JSON: ${(err as Error).message}`));
+            process.exit(1);
+          }
+        }
+
+        // Combine filters: raw filter AND convenience filter
+        const filter = combineFilters(rawFilter, convenienceFilter);
 
         const outputPath = options.output || "requests-export.jsonl";
         const format = (options.format || "jsonl") as OutputFormat;
