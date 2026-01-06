@@ -311,9 +311,10 @@ def run_status(ctx, run_id: str, output_format: str):
 @runs.command("inspect")
 @click.argument("run_id")
 @click.option("--show-input", "-i", is_flag=True, help="Show workflow input data")
-@click.option("--show-output", "-o", is_flag=True, help="Show task outputs")
+@click.option("--show-output", "-o", is_flag=True, help="Show task inputs/outputs")
 @click.option("--show-children", "-c", is_flag=True, help="Show child workflow runs")
-@click.option("--show-all", "-a", is_flag=True, help="Show all details (input, output, children)")
+@click.option("--show-events", "-e", is_flag=True, help="Show task events (queued, failed, etc.)")
+@click.option("--show-all", "-a", is_flag=True, help="Show all details (input, output, children, events)")
 @click.option("--format", "-f", "output_format", type=click.Choice(["table", "json", "yaml"]), default="table", help="Output format")
 @click.pass_context
 def inspect_run(
@@ -322,6 +323,7 @@ def inspect_run(
     show_input: bool,
     show_output: bool,
     show_children: bool,
+    show_events: bool,
     show_all: bool,
     output_format: str,
 ):
@@ -350,6 +352,9 @@ def inspect_run(
         # Just show outputs
         hatchet runs inspect abc123-def456-... --show-output
 
+        # Show task events (queued, failed, retried, etc.)
+        hatchet runs inspect abc123-def456-... --show-events
+
         # Inspect with JSON output for scripting
         hatchet runs inspect abc123-def456-... -a --format json
     """
@@ -357,7 +362,7 @@ def inspect_run(
         client: HatchetClient = ctx.obj["client"]
 
         if show_all:
-            show_input = show_output = show_children = True
+            show_input = show_output = show_children = show_events = True
 
         # Get the main run data
         run = client.get_workflow_run(run_id)
@@ -443,41 +448,103 @@ def inspect_run(
             task_table.add_column("Task", style="bold")
             task_table.add_column("Status")
             task_table.add_column("Duration")
+            task_table.add_column("Children", justify="center")
             task_table.add_column("Finished")
 
             for task in tasks_data:
                 task_name = task.get("displayName", task.get("actionId", "unnamed"))
+                task_id = task.get("taskExternalId", task.get("metadata", {}).get("id", ""))
                 # Shorten the name if too long
-                if len(task_name) > 50:
-                    task_name = task_name[:47] + "..."
+                if len(task_name) > 45:
+                    task_name = task_name[:42] + "..."
                 task_status = task.get("status", "UNKNOWN")
                 task_finished = format_timestamp(task.get("finishedAt"), relative=True) if task.get("finishedAt") else "-"
                 # Calculate duration from metadata.createdAt to finishedAt
                 task_created = task.get("metadata", {}).get("createdAt")
                 task_duration = format_duration(task_created, task.get("finishedAt")) if task_created and task.get("finishedAt") else "-"
+                spawned_children = task.get("numSpawnedChildren", 0)
 
                 task_table.add_row(
                     task_name,
                     str(colorize_status(task_status)),
                     task_duration,
+                    str(spawned_children) if spawned_children > 0 else "-",
                     task_finished,
                 )
 
-                # Show output if requested
-                if show_output and task.get("output"):
-                    console.print(task_table)
-                    console.print(f"\n  [dim]Output for {task_name}:[/dim]")
-                    output_json(task.get("output"))
-                    task_table = Table(box=box.SIMPLE)
-                    task_table.add_column("Task", style="bold")
-                    task_table.add_column("Status")
-                    task_table.add_column("Duration")
-                    task_table.add_column("Finished")
+                # Show task input/output if requested
+                if show_output:
+                    task_input = task.get("input")
+                    task_output = task.get("output")
+                    task_error = task.get("errorMessage")
+
+                    if task_input or task_output or task_error:
+                        console.print(task_table)
+                        if task_input and task_input != {}:
+                            console.print(f"\n  [cyan]Input for {task_name}:[/cyan]")
+                            output_json(task_input)
+                        if task_output and task_output != {}:
+                            console.print(f"\n  [green]Output for {task_name}:[/green]")
+                            output_json(task_output)
+                        if task_error:
+                            console.print(f"\n  [red]Error for {task_name}:[/red]")
+                            console.print(f"    {task_error}")
+                        task_table = Table(box=box.SIMPLE)
+                        task_table.add_column("Task", style="bold")
+                        task_table.add_column("Status")
+                        task_table.add_column("Duration")
+                        task_table.add_column("Children", justify="center")
+                        task_table.add_column("Finished")
 
             if task_table.row_count > 0:
                 console.print(task_table)
         else:
             console.print("  [dim]No tasks found[/dim]")
+
+        # === Task Events ===
+        if show_events and task_events:
+            console.print("\n[bold]Task Events[/bold]")
+            events_table = Table(box=box.SIMPLE)
+            events_table.add_column("Time", style="dim")
+            events_table.add_column("Task")
+            events_table.add_column("Event")
+            events_table.add_column("Message")
+
+            # Sort events by timestamp (newest first)
+            sorted_events = sorted(task_events, key=lambda e: e.get("timestamp", ""), reverse=True)
+
+            for event in sorted_events[:20]:  # Limit to 20 most recent events
+                event_time = format_timestamp(event.get("timestamp"), relative=True)
+                task_display = event.get("taskDisplayName", event.get("taskId", "unknown"))
+                if len(task_display) > 40:
+                    task_display = task_display[:37] + "..."
+                event_type = event.get("eventType", "UNKNOWN")
+                message = event.get("message") or event.get("errorMessage") or ""
+                if len(message) > 50:
+                    message = message[:47] + "..."
+
+                # Color the event type
+                event_color = {
+                    "QUEUED": "cyan",
+                    "STARTED": "blue",
+                    "COMPLETED": "green",
+                    "FAILED": "red",
+                    "CANCELLED": "yellow",
+                    "SCHEDULING_TIMED_OUT": "red",
+                    "REQUEUED_NO_WORKER": "yellow",
+                    "SKIPPED": "dim",
+                }.get(event_type, "white")
+
+                events_table.add_row(
+                    event_time,
+                    task_display,
+                    f"[{event_color}]{event_type}[/{event_color}]",
+                    message,
+                )
+
+            console.print(events_table)
+            if len(task_events) > 20:
+                console.print(f"  [dim]Showing 20 of {len(task_events)} events[/dim]")
 
         # === Errors ===
         error = run_data.get("errorMessage")
@@ -488,34 +555,108 @@ def inspect_run(
         # === Child Runs ===
         if show_children:
             console.print("\n[bold]Child Workflow Runs[/bold]")
-            try:
-                children = client.list_child_runs(run_id)
-                child_runs = children.get("rows", [])
-                if child_runs:
-                    child_table = Table(box=box.SIMPLE)
-                    child_table.add_column("ID")
-                    child_table.add_column("Workflow")
-                    child_table.add_column("Status")
-                    child_table.add_column("Duration")
 
-                    for child in child_runs:
-                        child_id = child.get("metadata", {}).get("id", "")[:12] + "..."
-                        child_workflow = child.get("workflowVersion", {}).get("workflow", {}).get("name", "unknown")
-                        child_status = child.get("status", "UNKNOWN")
-                        child_duration = format_duration(child.get("startedAt"), child.get("finishedAt"))
-                        child_table.add_row(
-                            child_id,
-                            child_workflow,
-                            str(colorize_status(child_status)),
-                            child_duration,
+            # Get all task external IDs from this run
+            task_ids = {}
+            for task in tasks_data:
+                task_external_id = task.get("taskExternalId", task.get("metadata", {}).get("id", ""))
+                task_name = task.get("displayName", task.get("actionId", "unknown"))
+                if len(task_name) > 35:
+                    task_name = task_name[:32] + "..."
+                if task_external_id:
+                    task_ids[task_external_id] = task_name
+
+            # Efficient approach: single API call with time window, then filter client-side
+            # Falls back to individual lookups if time-window approach doesn't return parentTaskExternalId
+            all_children = []
+            used_fallback = False
+            if task_ids:
+                from datetime import datetime, timedelta
+                from dateutil.parser import isoparse
+
+                # Get the parent run's time window
+                run_created = run_data.get("createdAt") or run_data.get("metadata", {}).get("createdAt")
+                run_finished = run_data.get("finishedAt")
+
+                if run_created:
+                    try:
+                        # Parse the start time
+                        since = run_created
+
+                        # For the end time, use finishedAt + 5 min buffer, or now + 5 min if still running
+                        if run_finished:
+                            finished_dt = isoparse(run_finished)
+                            until_dt = finished_dt + timedelta(minutes=5)
+                            until = until_dt.isoformat()
+                        else:
+                            # Run still in progress, use now + buffer
+                            until = None
+
+                        # Single API call: fetch all runs in the time window
+                        children_result = client.list_runs_in_timewindow(
+                            since=since,
+                            until=until,
+                            limit=100,
+                        )
+                        candidate_children = children_result.get("rows", [])
+
+                        # Check if any runs have parentTaskExternalId field populated
+                        # If none do, the API might not return this field in list response
+                        has_parent_field = any(
+                            child.get("parentTaskExternalId") for child in candidate_children
                         )
 
-                    console.print(child_table)
-                    console.print(f"\n  [dim]Tip: Inspect a child with: hatchet runs inspect <child-id>[/dim]")
-                else:
-                    console.print("  [dim]No child runs[/dim]")
-            except Exception as e:
-                console.print(f"  [dim]Could not fetch child runs: {e}[/dim]")
+                        if has_parent_field or len(candidate_children) == 0:
+                            # Filter client-side for those with parentTaskExternalId matching our tasks
+                            for child in candidate_children:
+                                parent_task_id = child.get("parentTaskExternalId")
+                                if parent_task_id and parent_task_id in task_ids:
+                                    child["_spawned_by"] = task_ids[parent_task_id]
+                                    all_children.append(child)
+                        else:
+                            # API doesn't return parentTaskExternalId in list, use fallback
+                            used_fallback = True
+                    except Exception:
+                        used_fallback = True
+
+                    # Fallback: individual lookups per task
+                    if used_fallback:
+                        for task_external_id, task_name in task_ids.items():
+                            try:
+                                children = client.list_child_runs(task_external_id)
+                                child_runs = children.get("rows", [])
+                                for child in child_runs:
+                                    child["_spawned_by"] = task_name
+                                    all_children.append(child)
+                            except Exception:
+                                pass
+
+            if all_children:
+                child_table = Table(box=box.SIMPLE)
+                child_table.add_column("Run ID")
+                child_table.add_column("Workflow")
+                child_table.add_column("Status")
+                child_table.add_column("Spawned By")
+
+                for child in all_children:
+                    child_id = child.get("metadata", {}).get("id", "")
+                    child_id_short = child_id[:12] + "..." if child_id else "-"
+                    child_workflow = child.get("workflowName", child.get("displayName", "unknown"))
+                    if child_workflow and len(child_workflow) > 30:
+                        child_workflow = child_workflow[:27] + "..."
+                    child_status = child.get("status", "UNKNOWN")
+                    spawned_by = child.get("_spawned_by", "-")
+                    child_table.add_row(
+                        child_id_short,
+                        child_workflow,
+                        str(colorize_status(child_status)),
+                        spawned_by,
+                    )
+
+                console.print(child_table)
+                console.print(f"\n  [dim]Tip: Inspect a child with: hatchet runs inspect <full-child-id>[/dim]")
+            else:
+                console.print("  [dim]No child runs[/dim]")
 
         # === Triggered By ===
         triggered_by = run.get("triggeredBy")

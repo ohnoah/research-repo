@@ -729,6 +729,41 @@ class HatchetClient:
             },
         )
 
+    def list_runs_in_timewindow(
+        self,
+        since: str,
+        until: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        limit: int = 100,
+    ) -> Dict[str, Any]:
+        """
+        List workflow runs within a time window.
+
+        This is an efficient way to find all runs created during a specific
+        time period, which can then be filtered client-side by parentTaskExternalId.
+
+        Args:
+            since: Start of time window (ISO 8601 timestamp)
+            until: End of time window (ISO 8601 timestamp), defaults to now
+            tenant_id: The tenant ID. Uses default if not provided.
+            limit: Maximum number of runs to return
+
+        Returns:
+            List of workflow runs in the time window
+        """
+        tid = self._require_tenant(tenant_id)
+        params = {
+            "limit": limit,
+            "since": since,
+            "only_tasks": "false",
+        }
+        if until:
+            params["until"] = until
+        return self._get(
+            f"/api/v1/stable/tenants/{tid}/workflow-runs",
+            params=params,
+        )
+
     # =========================================================================
     # Step Runs
     # =========================================================================
