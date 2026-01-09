@@ -1,38 +1,44 @@
 """
 Sentry Integration for Hatchet.run Python SDK
 
-This module provides automatic Sentry scope wrapping for all Hatchet workflow steps.
-It works with Sentry's OTEL integration and provides ergonomic ways to:
-- Automatically wrap every step in a Sentry isolation scope
-- Set user properties on the scope
-- Add workflow/step context as tags and extra data
-- Capture exceptions with full context
+Provides automatic Sentry scope wrapping for Hatchet workflow tasks.
+Works alongside Hatchet's OTel instrumentor - use both together!
 
 Usage:
+    from hatchet_sdk import Hatchet
+    from hatchet_sdk.opentelemetry import HatchetInstrumentor
     import sentry_sdk
+    from sentry_sdk.integrations.opentelemetry import SentrySpanProcessor
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+
     from hatchet_sentry_integration import HatchetSentryIntegration
 
+    # 1. Set up OTel with Sentry
+    provider = TracerProvider()
+    provider.add_span_processor(SentrySpanProcessor())
+    trace.set_tracer_provider(provider)
+
+    # 2. Initialize Sentry with both integrations
     sentry_sdk.init(
         dsn="your-dsn",
         integrations=[
-            HatchetSentryIntegration(
-                # Optional: customize how user data is extracted
-                user_extractor=lambda action: {
-                    "id": action.action_payload.input.get("user_id"),
-                    "email": action.action_payload.input.get("user_email"),
-                }
-            )
+            HatchetSentryIntegration(),  # Adds user context + tags
         ],
     )
 
-Or with the instrumentor pattern (similar to Hatchet's OTel instrumentor):
+    # 3. Initialize Hatchet OTel instrumentor (creates spans)
+    HatchetInstrumentor(tracer_provider=provider).instrument()
 
-    from hatchet_sentry_integration import HatchetSentryInstrumentor
-
-    instrumentor = HatchetSentryInstrumentor(
-        user_extractor=lambda action: {"id": action.action_payload.user_data.get("id")}
+    # 4. When running workflows WITH a user, pass user in metadata:
+    await hatchet.admin.aio_run_workflow(
+        "UserWorkflow",
+        input={"order_id": "123"},
+        options={"additional_metadata": {"sentry_user": {"id": "user-123", "email": "a@b.com"}}},
     )
-    instrumentor.instrument()
+
+    # System workflows just don't pass sentry_user - works fine, no user context
+    await hatchet.admin.aio_run_workflow("SystemCleanupWorkflow", input={})
 """
 
 from __future__ import annotations
